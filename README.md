@@ -36,3 +36,16 @@ I have stayed with Exploration this week because we still have a few more submis
 I have increased the grid size to explore a larger area this has increased the number of computation but I have tweaked the down sampling to keep the computation requirements within reasonable limits.
 In certain functions I have tried to use feature importance measure and RBF kernel to convert importance to length scales in the kernel which I passed to the GaussianProcessRegressor.
 I considered SVM but that can be used only where there is a clear localisation of the optimum/maximised values. For example, function-1 where the radiation measurement is non-zero only in the region close to the contamination source. Similarly function-5 where which is unimodal with a single peak where yield is maximised. SVM may not be useful in for functions like function-3 (drug discovery) where the side-effects would change gradually or function 4 and function 6 where output will be improved gradually my fine tuning the hyper parameters. In essence the margins between the optimal value and others are very small.
+### Week 4:
+I have established a flow for evaluating the grid and identifying the candidate points/queries for submission.
+This week I have focused on reducing computational requirement by filtering the grid using SVM. Based on the requirement and behaviour of functions I have used, Gaussian Process, Median or K nearest neighbour techniques. I have retained my explorattive stance. Filtering has allowed me to keep the exploration size large and yet reduce the number of candidate points to evaluate. This is in addition to the downsampling that I introduced in Week 2.
+### Week 5:
+I have developed two neural networks. One that is Fixed and the other that uses gradient descent and backpropagation. Compared the results of the two. Then, to reduce the number of epochs I have introduced a early stopping, the iteration stop once the loss falls below a certain threshold. I have used another value called patience that allows the iterations to continue for a fixed number of times even after the loss threshold has been achieved.
+The steps i have introduced are 
+1) Read input data
+2) Add the results of the previously submitted queries.
+3) Train the surrogate on the input
+4) Create/Prepare the grid, downsample, filter using SVM (gp, median, knn).
+5) Predict the output for the filtered grid using the trained surrogate.
+6) Apply Beysian optimisation/compute acqusition for various values of XI, PI, Kappa.
+7) Find best candidate.
