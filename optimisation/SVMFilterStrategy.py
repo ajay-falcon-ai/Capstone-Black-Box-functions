@@ -96,6 +96,6 @@ class SVMFilterStrategy:
 
         print(f"Filtered {num_filtered} candidates near decision boundary (|margin| < {self.threshold})")
         print(f"Excluded {num_excluded} candidates from consideration")
-        print(f"Final grid shape: {filtered.shape}")
+        print(f"Final grid shape after filtering: {filtered.shape}")
 
         return filtered

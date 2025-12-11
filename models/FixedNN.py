@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import pairwise_distances
 from scipy.stats import norm
 from scipy.spatial import ConvexHull
-from utils.SVMFilterStrategy import SVMFilterStrategy
+from optimisation.SVMFilterStrategy import SVMFilterStrategy
 
 # -------------------- Fixed Surrogate --------------------
 class FixedNN(nn.Module):

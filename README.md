@@ -40,7 +40,7 @@ I considered SVM but that can be used only where there is a clear localisation o
 I have established a flow for evaluating the grid and identifying the candidate points/queries for submission.
 This week I have focused on reducing computational requirement by filtering the grid using SVM. Based on the requirement and behaviour of functions I have used, Gaussian Process, Median or K nearest neighbour techniques. I have retained my explorattive stance. Filtering has allowed me to keep the exploration size large and yet reduce the number of candidate points to evaluate. This is in addition to the downsampling that I introduced in Week 2.
 ### Week 5:
-I have developed two neural networks. One that is Fixed and the other that uses gradient descent and backpropagation. Compared the results of the two. Then, to reduce the number of epochs I have introduced a early stopping, the iteration stop once the loss falls below a certain threshold. I have used another value called patience that allows the iterations to continue for a fixed number of times even after the loss threshold has been achieved.
+I have developed two neural networks. One that is Fixed and the other that uses gradient descent and backpropagation. Compared the results of the two. Then, to reduce the number of epochs I have introduced a early stopping, the iterations stop once the loss falls below a certain threshold. I have used another value called patience that allows the iterations to continue for a fixed number of times even after the loss threshold is reached.
 The steps i have introduced are 
 1) Read input data
 2) Add the results of the previously submitted queries.
@@ -49,3 +49,16 @@ The steps i have introduced are
 5) Predict the output for the filtered grid using the trained surrogate.
 6) Apply Beysian optimisation/compute acqusition for various values of XI, PI, Kappa.
 7) Find best candidate.
+### Week 6:
+I have made several changes to my code base. I have moved towards using a configuration file. The config file has my hyperparameters for model training like learning rate, epochs, patience etc... and hyperparameters for optimisation like xi, kappa, grid size, filter strategy etc... Then there are two config variables optimization_direction and objective_mode.
+Optimisation direction has the following values
+• For "min", switched to minimization PI/EI formulas (using y_min instead of y_max).
+• For "min", UCB becomes a Lower Confidence Bound analogue (-mean + kappa*std).
+And objective_mode has the following values.
+• Raw: Train on the actual outputs, optimise them directly.
+• Zero_target: Train on squared outputs, optimise distance to zero.
+• Negated: Flip the sign so that maximisation logic corresponds to minimisation.
+
+Another general change that I have made is to the create_bound function to such that every grid or candidate generated from these bounds will respect the constraint that individual inputs cannot be negative.
+
+To keep record of the various runs of the model I am now recording the output candidate points and plots in the results folder with the timestamp of the run in the folder name.

@@ -1,0 +1,34 @@
+# config.yaml (edit only this file per experiment)
+# data_module and data_class are optional; they will be inferred from folder name if omitted.
+data_module: Function7DataHandler
+data_class: Function7DataHandler
+
+source_label: "week-x"
+yield_col: "score"
+
+bayesopt:
+  xi_values: [0.01, 0.1]
+  kappa_values: [0.5, 1.0]
+  grid_sizes: [100]
+  methods: ["PI", "EI", "UCB"]
+  apply_scaling: true
+  filter_mode: "median"
+  downsample_grid: true     # to downsample or not.
+  downsample_stride: 8      # higher stride means more downsampling.
+  optimization_direction: "max"   # min or "max"
+
+model:
+  type: cnn   # or "cnn"
+  params:
+    input_dim: 6
+    lr: 0.001
+    epochs: 600
+    patience: 20
+  objective_mode: "raw"   # raw, zero_target or negated
+
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 1.0
+  source_color: "red"
+  source_marker_style: "x"
+  figsize: [6, 5]

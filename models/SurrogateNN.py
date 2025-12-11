@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import pairwise_distances
 from scipy.stats import norm
 from scipy.spatial import ConvexHull
-from utils.SVMFilterStrategy import SVMFilterStrategy
+from optimisation.SVMFilterStrategy import SVMFilterStrategy
 
 
 class SurrogateNN(nn.Module):
@@ -89,7 +89,7 @@ class SurrogateTrainer:
         train_losses, val_losses, weights_log = [], [], []
         best_val_loss = np.inf
         patience_counter = 0
-
+        
         for epoch in range(self.epochs):
             # ---- Training ----
             self.model.train()
@@ -187,3 +187,119 @@ class SurrogateTrainer:
 
         else:
             raise ValueError("mode must be 'local' or 'global'")
+
+    def plot_training_summary_simple(
+        history,
+        layer_name="model.0.weight",
+        stat="mean",                # "mean" or "std"
+        title="Training: Losses and Weight Trend",
+        figsize=(8, 4),
+        return_fig=False
+    ):
+        """
+        Simple combined plot for train/val losses and one layer weight stat.
+        Expects history = {"train_losses": [...], "val_losses": [...], "weights": [epoch_dicts] }.
+        Each epoch_dict maps layer_name -> {"mean": float, "std": float}.
+        """
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        # --- losses
+        train = np.asarray(history.get("train_losses", [])) if isinstance(history, dict) else np.asarray([])
+        val = np.asarray(history.get("val_losses", [])) if isinstance(history, dict) else np.asarray([])
+
+        # --- weight series (extract stat from per-epoch dicts)
+        w_series = None
+        weights_seq = history.get("weights") if isinstance(history, dict) else None
+        if weights_seq:
+            vals = []
+            for epoch_stats in weights_seq:
+                if not isinstance(epoch_stats, dict):
+                    vals.append(np.nan)
+                    continue
+                entry = epoch_stats.get(layer_name)
+                if entry is None:
+                    vals.append(np.nan)
+                    continue
+                # entry expected to be {'mean':..., 'std':...}
+                if isinstance(entry, dict):
+                    v = entry.get(stat, entry.get("mean", np.nan))
+                    try:
+                        vals.append(float(v))
+                    except Exception:
+                        vals.append(np.nan)
+                else:
+                    # fallback: numeric scalar/array
+                    try:
+                        arr = np.asarray(entry)
+                        vals.append(float(np.nanmean(arr)) if arr.size > 0 else np.nan)
+                    except Exception:
+                        vals.append(np.nan)
+            w_series = np.asarray(vals, dtype=float)
+
+        # --- build figure
+        fig, ax1 = plt.subplots(figsize=figsize)
+        plotted = False
+
+        if train.size > 0:
+            epochs = np.arange(len(train))
+            ax1.plot(epochs, train, marker="o", color="C0", label="train loss")
+            plotted = True
+
+        if val.size > 0:
+            epochs_val = np.arange(len(val))
+            ax1.plot(epochs_val, val, marker="s", linestyle="--", color="C1", label="val loss")
+            plotted = True
+
+        ax1.set_xlabel("Epoch")
+        ax1.set_ylabel("Loss")
+        ax1.grid(True)
+
+        ax2 = ax1.twinx()
+        if w_series is not None and w_series.size > 0 and not np.all(np.isnan(w_series)):
+            e_w = np.arange(len(w_series))
+            ax2.plot(e_w, w_series, marker="X", color="C3", linewidth=2, label=f"{layer_name} {stat}")
+            ax2.set_ylabel(f"{layer_name} {stat}")
+            plotted = True
+
+            # if std available and stat == "mean", try to plot shaded band using stored std
+            if stat == "mean" and weights_seq:
+                std_vals = []
+                have_std = True
+                for epoch_stats in weights_seq:
+                    if isinstance(epoch_stats, dict) and layer_name in epoch_stats:
+                        entry = epoch_stats[layer_name]
+                        if isinstance(entry, dict) and "std" in entry:
+                            try:
+                                std_vals.append(float(entry["std"]))
+                                continue
+                            except Exception:
+                                pass
+                    std_vals.append(np.nan)
+                    have_std = False
+                std_arr = np.asarray(std_vals, dtype=float)
+                if np.any(~np.isnan(std_arr)):
+                    lower = w_series - std_arr
+                    upper = w_series + std_arr
+                    ax2.fill_between(e_w, lower, upper, color="C3", alpha=0.15)
+        else:
+            ax2.set_ylabel("")
+
+        # combined legend
+        h1, l1 = ax1.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        if h1 or h2:
+            ax1.legend(h1 + h2, l1 + l2, loc="best", fontsize="small")
+
+        plt.title(title)
+        plt.tight_layout()
+
+        if not plotted:
+            ax1.text(0.5, 0.5, "No training or weight history available", ha="center", va="center")
+            ax1.set_axis_off()
+
+        if return_fig:
+            return fig, ax1, ax2
+        else:
+            plt.show()
+            return None
