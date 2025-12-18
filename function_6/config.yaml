@@ -7,15 +7,22 @@ source_label: "week-x"
 yield_col: "flavour-score"
 
 bayesopt:
-  xi_values: [0.0, 0.01]
-  kappa_values: [0.5, 1.0]
-  grid_sizes: [100, 200]
   methods: ["PI", "EI", "UCB"]
+  # Acquisition parameters
+  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
+  grid_sizes: [100]
   apply_scaling: true
-  filter_mode: "median"
+  # Filtering strategy
+
+  filter_mode: "gp"
+  training_mode: "exploitation"   # exploitation/exploration/hybrid
+  filter_strategy: "good"         # boundary (explore) or good (exploit)
+
   downsample_grid: true     # to downsample or not.
   downsample_stride: 5      # higher stride means more downsampling.
   optimization_direction: "max"   # min or "max"
+
 
 model:
   type: cnn   # or "cnn"

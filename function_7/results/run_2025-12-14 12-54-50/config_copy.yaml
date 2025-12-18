@@ -1,0 +1,41 @@
+data_module: Function7DataHandler
+data_class: Function7DataHandler
+source_label: week-x
+yield_col: score
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.0
+  - 0.01
+  kappa_values:
+  - 0.5
+  - 1.0
+  grid_sizes:
+  - 100
+  apply_scaling: true
+  sample_strategy: sobol
+  filter_mode: median
+  training_mode: exploitation
+  filter_strategy: boundary
+  downsample_grid: true
+  downsample_stride: 6
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 6
+    lr: 0.001
+    epochs: 600
+    patience: 20
+  objective_mode: raw
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  figsize:
+  - 6
+  - 5

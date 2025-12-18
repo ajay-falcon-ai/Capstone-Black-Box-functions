@@ -62,3 +62,8 @@ And objective_mode has the following values.
 Another general change that I have made is to the create_bound function to such that every grid or candidate generated from these bounds will respect the constraint that individual inputs cannot be negative.
 
 To keep record of the various runs of the model I am now recording the output candidate points and plots in the results folder with the timestamp of the run in the folder name.
+### Week 7:
+For higher dimension functions the grid size becomes too large so I have tried using Latin Hypercude Sampling and Sobol in addition to Cartesian (the simple grid size) this week to find candidate points/queries.
+I have done this introducing a config parameter called 'sample_strategy'
+    sample_strategy: "lhs"   # cartesian / latin hypercube sampling (lhs) / sobol
+I have renamed the file containing my submissions and their outputs more sensibly.

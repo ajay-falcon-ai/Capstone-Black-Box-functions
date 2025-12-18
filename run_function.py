@@ -151,6 +151,13 @@ def run_pipeline(cfg, dh):
     out_dir = Path(cfg.get("out_dir", "results")) / f"run_{time_str}"
     out_dir.mkdir(parents=True, exist_ok=True)
     print("Outputs will be written to:", out_dir)
+    
+    # --- Save a copy of the config ---
+    config_copy_path = out_dir / "config_copy.yaml"
+    with open(config_copy_path, "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+    print(f"Saved a copy of the config : {config_copy_path}")
+
 
     plotter = PlotUtils(out_dir, cfg=cfg)
     utils = BayesOptUtils()
@@ -179,10 +186,13 @@ def run_pipeline(cfg, dh):
         methods=bo_cfg.get("methods"),
         apply_scaling=bo_cfg.get("apply_scaling", True),
         filter_mode=bo_cfg.get("filter_mode", None),
+        sample_strategy=bo_cfg.get("sample_strategy", "cartesian"),
         downsample_grid=bo_cfg.get("downsample_grid", True),
         downsample_stride=bo_cfg.get("downsample_stride", 2),
         optimization_direction=opt_direction,
         objective_mode=objective_mode,
+        training_mode=bo_cfg.get("training_mode", "exploitation"),
+        filter_strategy=bo_cfg.get("filter_strategy", "good"),
         out_dir=out_dir
     )
 

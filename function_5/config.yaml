@@ -7,14 +7,21 @@ source_label: "week-x"
 yield_col: "yield"
 
 bayesopt:
-  xi_values: [0.0, 0.01]
-  kappa_values: [0.5, 1.0]
-  grid_sizes: [100]
   methods: ["PI", "EI", "UCB"]
+  # Acquisition parameters
+  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
+  grid_sizes: [100]
   apply_scaling: true
+  # Filtering strategy
+
   filter_mode: "gp"
+  training_mode: "exploration"   # exploitation/exploration/hybrid
+  filter_strategy: "boundary"         # boundary (explore) or good (exploit)
+
   downsample_grid: true     # to downsample or not.
-  downsample_stride: 4            # higher stride means more downsampling.
+  downsample_stride: 4      # higher stride means more downsampling.
+  optimization_direction: "max"   # min or "max"
 
 model:
   type: mlp   # or "cnn"

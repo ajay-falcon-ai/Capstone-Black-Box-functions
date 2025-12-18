@@ -16,6 +16,8 @@ from optimisation.SVMFilterStrategy import SVMFilterStrategy
 from plotting.PlotUtils import PlotUtils
 from matplotlib.lines import Line2D
 from matplotlib.collections import PathCollection
+from scipy.stats import qmc   # for Sobol sequences
+
 
 class BayesOptUtils:
     # --- Preprocessing & bounds ---
@@ -59,8 +61,8 @@ class BayesOptUtils:
             bounds.append((low, high))
         return bounds
 
-    def filter_grid(self, X, y, X_grid, filter_mode='gp', percentile=90, threshold=0.2):
-        strategy = SVMFilterStrategy(filter_mode, percentile, threshold)
+    def filter_grid(self, X, y, X_grid, filter_mode='gp', percentile=90, threshold=0.2, training_mode='exploitation', filter_strategy='good'):
+        strategy = SVMFilterStrategy(filter_mode, percentile, threshold, training_mode=training_mode, filter_strategy=filter_strategy)
         strategy.fit(X, y, X_grid=X_grid)
         return strategy.filter(X_grid)
 
@@ -227,7 +229,278 @@ class BayesOptUtils:
 
         print(f"Final grid shape: {grid.shape}")
         return grid
-    
+
+    def latin_hypercube_sampling(self, n_samples, n_dim, bounds, random_state=None):
+        """
+        Generate Latin Hypercube Samples (LHS) for an n-dimensional space.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of sample points to generate.
+        n_dim : int
+            Number of dimensions.
+        bounds : list of tuple
+            List of (low, high) tuples for each dimension.
+        random_state : int, optional
+            Seed for reproducibility.
+
+        Returns
+        -------
+        samples : ndarray of shape (n_samples, n_dim)
+            Candidate points.
+        """
+        rng = np.random.default_rng(random_state)
+
+        # Step 1: Divide [0,1] into n_samples intervals
+        cut = np.linspace(0, 1, n_samples + 1)
+
+        # Step 2: For each dimension, sample one point from each interval
+        u = np.zeros((n_samples, n_dim))
+        for j in range(n_dim):
+            # draw n_samples values, one from each interval
+            u[:, j] = rng.uniform(low=cut[:-1], high=cut[1:], size=n_samples)
+            # permute them to break correlation
+            rng.shuffle(u[:, j])
+
+        # Step 3: Scale to bounds
+        samples = np.zeros_like(u)
+        for j, (low, high) in enumerate(bounds):
+            samples[:, j] = low + u[:, j] * (high - low)
+
+        return samples
+
+    def create_sample_points(self, bounds, grid_size=50,
+                            downsample_grid=True, downsample_stride=2, n_samples=None,
+                            random_state=None, sample_strategy="cartesian"):
+        """
+        Create candidate sample points using different strategies.
+
+        Parameters
+        ----------
+        bounds : list of tuple
+            List of (low, high) tuples specifying the range for each dimension.
+        sample_strategy : str, default="cartesian"
+            Candidate generation strategy: "cartesian", "lhs", or "sobol".
+        grid_size : int, default=50
+            Number of points per axis (used for cartesian).
+        downsample : bool, default=True
+            Whether to downsample the grid (cartesian only).
+        stride : int, default=2
+            Downsampling stride (cartesian only).
+        n_samples : int, optional
+            Number of points to sample (lhs/sobol).
+        random_state : int, optional
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        samples : ndarray of shape (M, D)
+            Candidate points, where:
+            - D = number of dimensions (len(bounds))
+            - M = number of points (depends on strategy and parameters).
+        """
+        dim = len(bounds)
+
+        if sample_strategy == "cartesian":
+            # Call your existing Cartesian grid builder
+            samples = self.create_nd_grid(bounds, grid_size=grid_size,
+                                    downsample=downsample, stride=stride)
+
+        elif sample_strategy == "lhs":
+            if n_samples is None:
+                n_samples = grid_size
+            samples = self.latin_hypercube_sampling(n_samples, dim, bounds, random_state)
+
+        elif sample_strategy == "sobol":
+            if n_samples is None:
+                n_samples = grid_size
+            sampler = qmc.Sobol(d=dim, scramble=True, seed=random_state)
+            unit_samples = sampler.random(n_samples)
+            samples = np.zeros_like(unit_samples)
+            for j, (low, high) in enumerate(bounds):
+                samples[:, j] = low + unit_samples[:, j] * (high - low)
+
+        else:
+            raise ValueError(f"Unsupported sample_strategy: {sample_strategy}")
+
+        print(f"sample_strategy={sample_strategy}, Final sample shape: {samples.shape}")
+        return samples
+
+    def run_flow(self, trainer, X, y,
+                xi_values,
+                kappa_values,
+                grid_sizes,
+                methods,
+                apply_scaling,
+                filter_mode,
+                downsample_grid,
+                downsample_stride,
+                sample_strategy="cartesian",
+                optimization_direction="max",
+                objective_mode="raw",
+                training_mode="exploitation",
+                filter_strategy="good",
+                out_dir=None,
+                ):
+        """
+        End-to-end pipeline for Bayesian optimisation with a surrogate NN.
+
+        Parameters
+        ----------
+        trainer : SurrogateTrainer
+            Surrogate model trainer instance (MLP, CNN, etc.).
+        X : np.ndarray of shape (n_samples, n_features)
+            Input feature matrix.
+        y : np.ndarray of shape (n_samples,)
+            Output target values (radiation readings).
+        xi_values : list of float
+            Exploration parameters for PI/EI acquisition functions.
+        kappa_values : list of float
+            Exploration parameters for UCB acquisition function.
+        grid_sizes : list of int
+            Resolutions of the search grid to sweep.
+        methods : list of str
+            Acquisition methods to sweep (e.g. ['PI','EI','UCB']).
+        apply_scaling : bool
+            Whether to scale y before training (StandardScaler).
+        filter_mode : str
+            Grid filtering strategy (e.g. 'gp', 'svm').
+        downsample_grid : bool
+            Whether to downsample the grid along each axis.
+        downsample_stride : int
+            Stride for downsampling (e.g. stride=2 → every 2nd point).
+        out_dir : str or Path, optional
+            Directory to save plots and CSV outputs.
+
+        Returns
+        -------
+        results : dict
+            Dictionary keyed by grid_size with values:
+            (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
+
+            - X_grid_filtered : np.ndarray
+                Candidate grid points after filtering.
+            - mean_raw : np.ndarray
+                Surrogate predictions in **raw (de-scaled)** units.
+            - bounds : list of tuple
+                Bounds for each input dimension.
+            - best : dict
+                Best candidate info (method, params, score, x, predicted_y).
+            - query_results : list of dict
+                All candidate query results with acquisition scores.
+            - acq_maps : dict
+                Acquisition maps keyed by (method, param).
+        """
+
+        # Step 1: preprocess targets (scale if requested)
+        # Returns both scaled y and the fitted scaler for later inverse-transform
+        y_proc, y_scaler = self.preprocess_y(y, apply_scaling=apply_scaling, objective_mode=objective_mode)
+
+        # Step 2: train surrogate model on scaled targets
+        history = trainer.fit(X, y_proc, log_weights=True)
+        plotter = PlotUtils(out_dir)
+
+        # Ensure output directory exists
+        from pathlib import Path
+        if out_dir is not None:
+            out_dir = Path(out_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Plot training diagnostics
+        plotter.plot_loss_curve_and_weigth_evolution(history)
+
+        # Step 3: loop over grid sizes
+        results = {}
+        acq_maps = {}   # store full acquisition maps per method/param
+        for grid_size in grid_sizes:
+            # Compute bounds from input data
+            bounds = self.compute_bounds(X, margin=0.1)
+
+            # Build full grid and downsample if requested
+            #X_grid_full = self.create_nd_grid(bounds, int(grid_size),
+            #                                downsample_grid, downsample_stride)
+            
+            # Filter grid using chosen strategy (GP, SVM, etc.)
+            X_grid_full = self.create_sample_points(
+                            bounds=bounds,
+                            grid_size=grid_size,
+                            downsample_grid=downsample_grid,
+                            downsample_stride=downsample_stride,
+                            n_samples=None,
+                            random_state=None,
+                            sample_strategy=sample_strategy
+                    )
+
+            # Filter grid using chosen strategy (GP, SVM, etc.)
+            X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
+                                            filter_mode=filter_mode)
+
+            if X_grid_filtered.shape[0] == 0:
+                print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
+                continue
+
+            # Surrogate predictions (scaled space)
+            mean_scaled = trainer.predict(X_grid_filtered)
+            print(f"Predictions range (scaled): {np.min(mean_scaled):.4f} to {np.max(mean_scaled):.4f}")
+            # 🔧 Inverse-transform predictions back to raw units if scaler exists
+            mean_raw = mean_scaled
+            if y_scaler is not None:
+                print("Inverse-transforming predictions to raw units")
+                mean_raw = y_scaler.inverse_transform(mean_scaled.reshape(-1, 1)).ravel()
+                print(f"Predictions range (raw): {np.min(mean_raw):.4f} to {np.max(mean_raw):.4f}")
+
+            # Uncertainty heuristic: distance to nearest training point
+
+            dist = pairwise_distances(X_grid_filtered, X)
+            std = np.min(dist, axis=1)
+
+            # Sweep acquisition functions
+            query_results = []
+            for method in methods:
+                if method in ['PI', 'EI']:
+                    for xi in xi_values:
+                        # Acquisition must be computed in scaled space
+                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, xi=xi)
+                        best_index = np.argmax(acq_map)
+                        next_query = X_grid_filtered[best_index]
+                        score = acq_map[best_index]
+
+                        # Candidate prediction logged in raw units
+                        pred_val = mean_raw[best_index]
+
+                        self.log_query_candidate(query_results, method, xi,
+                                                next_query, score, pred_val)
+                        acq_maps[(method, xi)] = acq_map
+
+                elif method == 'UCB':
+                    for kappa in kappa_values:
+                        # Acquisition must be computed in scaled space
+                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, kappa=kappa)
+                        best_index = np.argmax(acq_map)
+                        next_query = X_grid_filtered[best_index]
+                        score = acq_map[best_index]
+
+                        # Candidate prediction logged in raw units
+                        pred_val = mean_raw[best_index]
+
+                        self.log_query_candidate(query_results, method, kappa,
+                                                next_query, score, pred_val)
+                        acq_maps[(method, kappa)] = acq_map
+
+            if not query_results:
+                print(f"⚠️ No valid candidates found for grid_size={grid_size}")
+                continue
+
+            # Select best candidate
+            best = self.find_best_candidate(query_results)
+
+            # Store results for this grid size
+            results[grid_size] = (X_grid_filtered, mean_raw, bounds, best,
+                                query_results, acq_maps)
+
+        return results
+
     def train_svm_on_gp_mean(self, X, y, X_grid, percentile=90, kernel=None):
         """
         Train an SVM using GP mean predictions on the grid to label points.
@@ -334,165 +607,6 @@ class BayesOptUtils:
         print("Reduced candidates =", good_candidates_raw.shape)
         return good_candidates_raw
 
-    def run_flow(self, trainer, X, y,
-                xi_values,
-                kappa_values,
-                grid_sizes,
-                methods,
-                apply_scaling,
-                filter_mode,
-                downsample_grid,
-                downsample_stride,
-                optimization_direction="max",
-                objective_mode="raw",
-                out_dir=None,
-                ):
-        """
-        End-to-end pipeline for Bayesian optimisation with a surrogate NN.
-
-        Parameters
-        ----------
-        trainer : SurrogateTrainer
-            Surrogate model trainer instance (MLP, CNN, etc.).
-        X : np.ndarray of shape (n_samples, n_features)
-            Input feature matrix.
-        y : np.ndarray of shape (n_samples,)
-            Output target values (radiation readings).
-        xi_values : list of float
-            Exploration parameters for PI/EI acquisition functions.
-        kappa_values : list of float
-            Exploration parameters for UCB acquisition function.
-        grid_sizes : list of int
-            Resolutions of the search grid to sweep.
-        methods : list of str
-            Acquisition methods to sweep (e.g. ['PI','EI','UCB']).
-        apply_scaling : bool
-            Whether to scale y before training (StandardScaler).
-        filter_mode : str
-            Grid filtering strategy (e.g. 'gp', 'svm').
-        downsample_grid : bool
-            Whether to downsample the grid along each axis.
-        downsample_stride : int
-            Stride for downsampling (e.g. stride=2 → every 2nd point).
-        out_dir : str or Path, optional
-            Directory to save plots and CSV outputs.
-
-        Returns
-        -------
-        results : dict
-            Dictionary keyed by grid_size with values:
-            (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
-
-            - X_grid_filtered : np.ndarray
-                Candidate grid points after filtering.
-            - mean_raw : np.ndarray
-                Surrogate predictions in **raw (de-scaled)** units.
-            - bounds : list of tuple
-                Bounds for each input dimension.
-            - best : dict
-                Best candidate info (method, params, score, x, predicted_y).
-            - query_results : list of dict
-                All candidate query results with acquisition scores.
-            - acq_maps : dict
-                Acquisition maps keyed by (method, param).
-        """
-
-        # Step 1: preprocess targets (scale if requested)
-        # Returns both scaled y and the fitted scaler for later inverse-transform
-        y_proc, y_scaler = self.preprocess_y(y, apply_scaling=apply_scaling, objective_mode=objective_mode)
-
-        # Step 2: train surrogate model on scaled targets
-        history = trainer.fit(X, y_proc, log_weights=True)
-        plotter = PlotUtils(out_dir)
-
-        # Ensure output directory exists
-        from pathlib import Path
-        if out_dir is not None:
-            out_dir = Path(out_dir)
-            out_dir.mkdir(parents=True, exist_ok=True)
-
-        # Plot training diagnostics
-        plotter.plot_loss_curve_and_weigth_evolution(history)
-
-        # Step 3: loop over grid sizes
-        results = {}
-        acq_maps = {}   # store full acquisition maps per method/param
-        for grid_size in grid_sizes:
-            # Compute bounds from input data
-            bounds = self.compute_bounds(X, margin=0.1)
-
-            # Build full grid and downsample if requested
-            X_grid_full = self.create_nd_grid(bounds, int(grid_size),
-                                            downsample_grid, downsample_stride)
-
-            # Filter grid using chosen strategy (GP, SVM, etc.)
-            X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
-                                            filter_mode=filter_mode)
-
-            if X_grid_filtered.shape[0] == 0:
-                print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
-                continue
-
-            # Surrogate predictions (scaled space)
-            mean_scaled = trainer.predict(X_grid_filtered)
-            print(f"Predictions range (scaled): {np.min(mean_scaled):.4f} to {np.max(mean_scaled):.4f}")
-            # 🔧 Inverse-transform predictions back to raw units if scaler exists
-            mean_raw = mean_scaled
-            if y_scaler is not None:
-                print("Inverse-transforming predictions to raw units")
-                mean_raw = y_scaler.inverse_transform(mean_scaled.reshape(-1, 1)).ravel()
-                print(f"Predictions range (raw): {np.min(mean_raw):.4f} to {np.max(mean_raw):.4f}")
-
-            # Uncertainty heuristic: distance to nearest training point
-            from sklearn.metrics import pairwise_distances
-            dist = pairwise_distances(X_grid_filtered, X)
-            std = np.min(dist, axis=1)
-
-            # Sweep acquisition functions
-            query_results = []
-            for method in methods:
-                if method in ['PI', 'EI']:
-                    for xi in xi_values:
-                        # Acquisition must be computed in scaled space
-                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, xi=xi)
-                        best_index = np.argmax(acq_map)
-                        next_query = X_grid_filtered[best_index]
-                        score = acq_map[best_index]
-
-                        # Candidate prediction logged in raw units
-                        pred_val = mean_raw[best_index]
-
-                        self.log_query_candidate(query_results, method, xi,
-                                                next_query, score, pred_val)
-                        acq_maps[(method, xi)] = acq_map
-
-                elif method == 'UCB':
-                    for kappa in kappa_values:
-                        # Acquisition must be computed in scaled space
-                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, kappa=kappa)
-                        best_index = np.argmax(acq_map)
-                        next_query = X_grid_filtered[best_index]
-                        score = acq_map[best_index]
-
-                        # Candidate prediction logged in raw units
-                        pred_val = mean_raw[best_index]
-
-                        self.log_query_candidate(query_results, method, kappa,
-                                                next_query, score, pred_val)
-                        acq_maps[(method, kappa)] = acq_map
-
-            if not query_results:
-                print(f"⚠️ No valid candidates found for grid_size={grid_size}")
-                continue
-
-            # Select best candidate
-            best = self.find_best_candidate(query_results)
-
-            # Store results for this grid size
-            results[grid_size] = (X_grid_filtered, mean_raw, bounds, best,
-                                query_results, acq_maps)
-
-        return results
     
     def select_next_query_multi(self, X, y, method='PI', xi=0.1, kappa=2.0, grid_size=100, dimension=None,
                                 apply_scaling=False, title="Acquisition Function", kernel=None, filter_mode='gp'):

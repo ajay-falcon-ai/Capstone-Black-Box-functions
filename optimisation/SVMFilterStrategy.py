@@ -5,13 +5,22 @@ from sklearn.gaussian_process.kernels import RBF
 from sklearn.neighbors import KNeighborsRegressor
 import numpy as np
 
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.neighbors import KNeighborsRegressor
+import numpy as np
+
 class SVMFilterStrategy:
     """
     A unified strategy for training and applying SVM-based filtering
-    using different labeling modes: 'median', 'gp', or 'knn'.
+    with flexible exploration/exploitation modes.
     """
 
-    def __init__(self, mode='median', percentile=90, threshold=0.2, knn_k=3, kernel=None):
+    def __init__(self, mode='median', percentile=90, threshold=0.2,
+                 knn_k=3, kernel=None, training_mode='exploration',
+                 filter_strategy='good'):
         """
         Parameters:
         - mode: 'median', 'gp', or 'knn'
@@ -19,83 +28,90 @@ class SVMFilterStrategy:
         - threshold: decision boundary margin for filtering
         - knn_k: number of neighbors for KNN
         - kernel: optional GP kernel (used in 'gp' mode)
+        - training_mode: 'exploration', 'exploitation', or 'hybrid'
+        - filter_strategy: 'boundary' (uncertain points) or 'good' (positively classified)
         """
         self.mode = mode
         self.percentile = percentile
         self.threshold = threshold
         self.knn_k = knn_k
         self.kernel = kernel or RBF(length_scale=0.1, length_scale_bounds='fixed')
+        self.training_mode = training_mode
+        self.filter_strategy = filter_strategy
         self.svm_clf = None
         self.scaler = None
 
     def fit(self, X, y, X_grid=None):
         """
-        Train the SVM classifier based on the selected labeling strategy.
-
-        Parameters:
-        - X, y: known data
-        - X_grid: required for 'gp' and 'knn' modes (grid to label)
+        Train the SVM classifier based on the selected labeling strategy
+        and training mode.
         """
         if self.mode == 'median':
             labels = (y >= np.median(y)).astype(int)
-            self.scaler = StandardScaler()
-            X_scaled = self.scaler.fit_transform(X)
-            self.svm_clf = SVC(kernel='rbf', C=1.0)
-            self.svm_clf.fit(X_scaled, labels)
+            train_X, train_labels = X, labels
 
-        elif self.mode == 'gp':
+        elif self.mode in ['gp', 'knn']:
             if X_grid is None:
-                raise ValueError("X_grid must be provided for 'gp' mode.")
-            gp = GaussianProcessRegressor(kernel=self.kernel, alpha=1e-10)
-            gp.fit(X, y)
-            mean, _ = gp.predict(X_grid, return_std=True)
-            cutoff = np.percentile(mean, self.percentile)
-            labels = (mean >= cutoff).astype(int)
-            self.scaler = StandardScaler()
-            X_scaled = self.scaler.fit_transform(X_grid)
-            self.svm_clf = SVC(kernel='rbf', C=1.0)
-            self.svm_clf.fit(X_scaled, labels)
+                raise ValueError("X_grid must be provided for 'gp' or 'knn' mode.")
 
-        elif self.mode == 'knn':
-            if X_grid is None:
-                raise ValueError("X_grid must be provided for 'knn' mode.")
-            knn = KNeighborsRegressor(n_neighbors=self.knn_k)
-            knn.fit(X, y)
-            y_grid = knn.predict(X_grid)
-            cutoff = np.percentile(y_grid, self.percentile)
-            labels = (y_grid >= cutoff).astype(int)
-            self.scaler = StandardScaler()
-            X_scaled = self.scaler.fit_transform(X_grid)
-            self.svm_clf = SVC(kernel='rbf', C=1.0)
-            self.svm_clf.fit(X_scaled, labels)
+            if self.mode == 'gp':
+                model = GaussianProcessRegressor(kernel=self.kernel, alpha=1e-10)
+                model.fit(X, y)
+                mean, _ = model.predict(X_grid, return_std=True)
+                cutoff = np.percentile(mean, self.percentile)
+                grid_labels = (mean >= cutoff).astype(int)
+
+            elif self.mode == 'knn':
+                model = KNeighborsRegressor(n_neighbors=self.knn_k)
+                model.fit(X, y)
+                y_grid = model.predict(X_grid)
+                cutoff = np.percentile(y_grid, self.percentile)
+                grid_labels = (y_grid >= cutoff).astype(int)
+
+            if self.training_mode == 'exploration':
+                train_X, train_labels = X_grid, grid_labels
+            elif self.training_mode == 'exploitation':
+                y_obs_pred = model.predict(X)
+                cutoff_obs = np.percentile(y_obs_pred, self.percentile)
+                obs_labels = (y_obs_pred >= cutoff_obs).astype(int)
+                train_X, train_labels = X, obs_labels
+            elif self.training_mode == 'hybrid':
+                y_obs_pred = model.predict(X)
+                cutoff_obs = np.percentile(y_obs_pred, self.percentile)
+                obs_labels = (y_obs_pred >= cutoff_obs).astype(int)
+                train_X = np.vstack([X, X_grid])
+                train_labels = np.concatenate([obs_labels, grid_labels])
+            else:
+                raise ValueError(f"Unsupported training_mode: {self.training_mode}")
 
         else:
             raise ValueError(f"Unsupported mode: {self.mode}")
+
+        self.scaler = StandardScaler()
+        X_scaled = self.scaler.fit_transform(train_X)
+        self.svm_clf = SVC(kernel='rbf', C=1.0)
+        self.svm_clf.fit(X_scaled, train_labels)
 
     def filter(self, candidates_raw):
         """
         Apply the trained SVM to filter candidate points.
 
-        Parameters:
-        - candidates_raw: grid or candidate points to filter
-
         Returns:
-        - filtered_candidates: subset near decision boundary
+        - filtered_candidates
         """
         if self.svm_clf is None or self.scaler is None:
             raise RuntimeError("SVMFilterStrategy must be fit before calling filter().")
 
         candidates_n = self.scaler.transform(candidates_raw)
-        decision_values = self.svm_clf.decision_function(candidates_n)
-        mask = np.abs(decision_values) < self.threshold
+
+        if self.filter_strategy == 'boundary':
+            decision_values = self.svm_clf.decision_function(candidates_n)
+            mask = np.abs(decision_values) < self.threshold
+        elif self.filter_strategy == 'good':
+            mask = self.svm_clf.predict(candidates_n) == 1
+        else:
+            raise ValueError(f"Unsupported filter_strategy: {self.filter_strategy}")
+
         filtered = candidates_raw[mask]
-
-        num_total = len(candidates_raw)
-        num_filtered = len(filtered)
-        num_excluded = num_total - num_filtered
-
-        print(f"Filtered {num_filtered} candidates near decision boundary (|margin| < {self.threshold})")
-        print(f"Excluded {num_excluded} candidates from consideration")
-        print(f"Final grid shape after filtering: {filtered.shape}")
-
+        print(f"Filtered {len(filtered)} candidates using filter_strategy='{self.filter_strategy}'")
         return filtered
