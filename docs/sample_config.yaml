@@ -1,0 +1,84 @@
+# config.yaml (edit only this file per experiment)
+# data_module and data_class are optional; they will be inferred from folder name if omitted.
+data_module: Function1DataHandler
+data_class: Function1DataHandler
+
+source_label: "week-x"
+yield_col: "radiation-reading"
+
+bayesopt:
+  methods: ["PI", "EI", "UCB"]
+  # Acquisition parameters
+  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
+  grid_sizes: [200]
+  apply_scaling: true
+  # Filtering strategy
+
+  filter_mode: "gp"
+  training_mode: "exploration"   # exploitation/exploration/hybrid
+  filter_strategy: "good"         # boundary (explore) or good (exploit)
+
+  downsample_grid: false     # to downsample or not.
+  downsample_stride: 2      # higher stride means more downsampling.
+  optimization_direction: "max"   # min or "max"
+
+
+model:
+  type: cnn   # or "cnn"
+  params:
+    input_dim: 2
+    lr: 0.001
+    epochs: 500
+    patience: 30
+  
+    # LLM params used if type=llm
+  llm:
+    provider: "openai"        # or "azure", "anthropic"
+    model: "gpt-4.1"
+    temperature: 0.7
+    max_tokens: 256
+
+    prompt_patterns:
+      exploration:
+        pattern: "zero-shot"
+        template: "Suggest {dim}-D candidate solutions."
+      mid_phase:
+        pattern: "few-shot"
+        examples:
+          - "[0.1, 0.5, 0.9]"
+          - "[0.2, 0.6, 0.8]"
+        template: "Given these examples, propose a new candidate."
+      diagnostics:
+        pattern: "chain-of-thought"
+        enabled: true
+        template: "Reason step by step to propose a candidate solution."
+      exploitation:
+        pattern: "structured"
+        format: "json"
+        schema:
+          - param: x1
+            type: float
+            range: [0.0, 1.0]
+          - param: x2
+            type: float
+            range: [0.0, 1.0]
+
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true   # <-- new flag
+  figsize: [6, 5]
+
+display:
+  matplotlib:
+    figsize: [12, 10]      # width, height in inches
+    dpi: 100
+    font_size: 12
+  pandas:
+    display_max_rows: null   # null means "no limit"; set an integer to limit rows
+    display_max_colwidth: null
+    display_width: 0
+    display_expand_frame_repr: false

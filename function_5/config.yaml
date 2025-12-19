@@ -24,12 +24,54 @@ bayesopt:
   optimization_direction: "max"   # min or "max"
 
 model:
-  type: mlp   # or "cnn"
+  type: llm   # or "cnn" or mlp
   params:
     input_dim: 4
     lr: 0.001
     epochs: 500
     patience: 20
+  llm:
+    enabled: true
+    provider: "openai"        # "openai" or "azure", "anthropic", etc.
+    model: "gpt-4.1"          # model identifier
+    temperature: 0.7          # controls randomness
+    max_tokens: 256           # response length limit
+    top_p: 0.9        # nucleus sampling
+    top_k: 40         # token cutoff
+
+    prompt_pattern: "zero-shot"
+    template: |
+      You are helping with Bayesian optimisation.
+      Here are the observed input-output pairs so far:
+
+      Inputs: {inputs}
+      Outputs: {outputs}
+
+      Based on these, suggest the next best candidate input point
+      to evaluate. Note that the function is unimodal with a single peak where yield is maximised. Return only a JSON array of numbers to 6 decimals, e.g. [0.120645, 0.4578095, 0.765645, 0.347838].
+
+    # prompt_pattern: "few-shot"
+    # template: |
+    #   You are helping with Bayesian optimisation.
+    #   Here are some examples of how to suggest the next candidate point:
+
+    #   Example 1:
+    #   Inputs: [[0.1, 0.2], [0.3, 0.4]]
+    #   Outputs: [1.0]
+    #   Next candidate: [0.25, 0.35]
+
+    #   Example 2:
+    #   Inputs: [[0.5, 0.6], [0.7, 0.8]]
+    #   Outputs: [3.0]
+    #   Next candidate: [0.6, 0.7]
+
+    #   Now, here are the observed input-output pairs so far:
+
+    #   Inputs: {inputs}
+    #   Outputs: {outputs}
+
+    #   Based on these, suggest the next best candidate input point
+    #   to evaluate. Return only a JSON array of numbers, e.g. [0.120645, 0.4578095].
 
 plot:
   scale_factor: 2000.0

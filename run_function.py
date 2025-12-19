@@ -147,27 +147,24 @@ def run_pipeline(cfg, dh):
     now = datetime.now()
     time_str = now.strftime("%Y-%m-%d %H-%M-%S")
     print(time_str)
-    # e.g. "2025-12-08 15-25-45"    
     out_dir = Path(cfg.get("out_dir", "results")) / f"run_{time_str}"
     out_dir.mkdir(parents=True, exist_ok=True)
     print("Outputs will be written to:", out_dir)
-    
+
     # --- Save a copy of the config ---
     config_copy_path = out_dir / "config_copy.yaml"
     with open(config_copy_path, "w") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     print(f"Saved a copy of the config : {config_copy_path}")
 
-
     plotter = PlotUtils(out_dir, cfg=cfg)
     utils = BayesOptUtils()
 
-    # Build and train surrogate model. Get the trainer from config.
+    # Build trainer if CNN surrogate is used
     print("Creating utilities and trainer...")
     trainer_cfg = cfg.get("trainer", {})
     trainer = build_model(trainer_cfg, input_dim=dh.inputs.shape[1])
-    #trainer.fit(dh.inputs, dh.outputs)
-    
+
     bo_cfg = cfg.get("bayesopt", {})
     mod_cfg = cfg.get("model", {})
     opt_direction = bo_cfg.get("optimization_direction", "max")
@@ -193,76 +190,91 @@ def run_pipeline(cfg, dh):
         objective_mode=objective_mode,
         training_mode=bo_cfg.get("training_mode", "exploitation"),
         filter_strategy=bo_cfg.get("filter_strategy", "good"),
-        out_dir=out_dir
+        out_dir=out_dir,
+        config=cfg
     )
 
     # Build base dataframe once (non-destructive)
     df_global = dh.build_dataframe()
     print("Base dataframe built with shape:", df_global.shape)
 
-    for grid_size, (X_grid_filtered, mean, bounds, best, query_results, acq_maps) in results.items():
-        print(f"\n=== Results for grid_size={grid_size} ===")
-        candidates, labels = plotter.extract_candidates_and_labels(query_results, include_score=True)
+    # --- Branch depending on model type ---
+    if mod_cfg.get("type") == "llm":
+        # LLM results are keyed by "llm"
+        X_grid_filtered, mean, bounds, best, query_results, acq_maps = results["llm"]
 
-        # Surrogate plot
-        plotter.plot_surrogate_generic(
-            X_grid_filtered,
-            mean,
-            X_filtered=X_grid_filtered,
-            bounds=bounds,
-            candidates=candidates,
-            candidate_labels=labels,
-            title=f"Surrogate predictions (grid_size={grid_size})",
-            initial_inputs=dh.inputs,
-            initial_outputs=dh.outputs,
-            weekly_points=None,
-            grid_size=grid_size
-        )
+        print("\n=== Results from LLM candidate generation ===")
+        print("Best candidate:", best)
 
-        # Extract candidate arrays from handler helper
+        # Extract candidate arrays
         cand_array, y_pred_array = dh.extract_candidate_arrays(query_results)
 
-        # Append candidates to a copy (non-destructive)
+        # Append candidates to dataframe
         df_copy, new_indices = dh.append_candidates_to_df_copy(
             candidates=cand_array,
             predicted_y=y_pred_array,
-            source_label=cfg.get("source_label", "week-x"),
+            source_label=cfg.get("source_label", "llm"),
             feature_cols=cfg.get("feature_cols", None),
             yield_col=cfg.get("yield_col", None),
             source_col=cfg.get("source_col", "source"),
         )
 
-        # Sort by penultimate column
-        df_copy_sorted = df_copy.sort_values(by=df_copy.columns[-2], ascending=False, na_position="last").reset_index(drop=True)
+        print(df_copy)
+        plotter.plot_output_points(df_copy, scale_factor=10)
 
-        # Plot outputs and highlight candidates by source label
-        plot_cfg = cfg.get("plot", {})
-        plt.figure()  # keep default sizing and rcParams
-        show_candidates = plot_cfg.get("show_candidates", True)
+        # Save CSV
+        csv_path = out_dir / "df_llm_candidates.csv"
+        df_copy.to_csv(csv_path, index=False, float_format="%.6f")
+        print("Saved LLM candidates to:", csv_path)
 
-        plotter.plot_output_points(
-            df_copy_sorted,
-            scale_factor=plot_cfg.get("scale_factor", 1.0),
-            yield_scale_factor=plot_cfg.get("yield_scale_factor", 1.0),
-            debug=False,
-            plot_candidates=show_candidates,
-            grid_size=grid_size
-        )
+    else:
+        # CNN surrogate path: loop over grid sizes
+        for grid_size, (X_grid_filtered, mean, bounds, best, query_results, acq_maps) in results.items():
+            print(f"\n=== Results for grid_size={grid_size} ===")
+            candidates, labels = plotter.extract_candidates_and_labels(query_results, include_score=True)
 
-        # Scale penultimate column generically and save CSV
-        col = df_copy_sorted.columns[-2]
-        max_val = df_copy_sorted[col].max(skipna=True)
-        scaled_col = f"{col}-scaled"
-        df_copy_sorted[scaled_col] = (df_copy_sorted[col].astype(float) * (10.0 / max_val)) if (np.isfinite(max_val) and max_val != 0) else np.nan
+            # Surrogate plot
+            plotter.plot_surrogate_generic(
+                X_grid_filtered,
+                mean,
+                X_filtered=X_grid_filtered,
+                bounds=bounds,
+                candidates=candidates,
+                candidate_labels=labels,
+                title=f"Surrogate predictions (grid_size={grid_size})",
+                initial_inputs=dh.inputs,
+                initial_outputs=dh.outputs,
+                weekly_points=None,
+                grid_size=grid_size
+            )
 
-        #csv_path = out_dir / f"df_grid_{grid_size}.csv"
-        csv_path = build_grid_filename(out_dir, cfg, grid_size=grid_size)
-        df_copy_sorted.to_csv(csv_path, index=False, float_format="%.6f")
-        print("Saved dataframe to:", csv_path)
+            # Extract candidate arrays
+            cand_array, y_pred_array = dh.extract_candidate_arrays(query_results)
 
-        # Print best candidate info and a short tail of appended rows
-        print("Best candidate:", best)
-        print(df_copy_sorted)
+            # Append candidates to dataframe
+            df_copy, new_indices = dh.append_candidates_to_df_copy(
+                candidates=cand_array,
+                predicted_y=y_pred_array,
+                source_label=cfg.get("source_label", "week-x"),
+                feature_cols=cfg.get("feature_cols", None),
+                yield_col=cfg.get("yield_col", None),
+                source_col=cfg.get("source_col", "source"),
+            )
+
+            # Sort and scale
+            df_copy_sorted = df_copy.sort_values(by=df_copy.columns[-2], ascending=False, na_position="last").reset_index(drop=True)
+            col = df_copy_sorted.columns[-2]
+            max_val = df_copy_sorted[col].max(skipna=True)
+            scaled_col = f"{col}-scaled"
+            df_copy_sorted[scaled_col] = (df_copy_sorted[col].astype(float) * (10.0 / max_val)) if (np.isfinite(max_val) and max_val != 0) else np.nan
+
+            # Save CSV
+            csv_path = build_grid_filename(out_dir, cfg, grid_size=grid_size)
+            df_copy_sorted.to_csv(csv_path, index=False, float_format="%.6f")
+            print("Saved dataframe to:", csv_path)
+
+            print("Best candidate:", best)
+            print(df_copy_sorted)
 
     print("\nPipeline finished.")
     return results

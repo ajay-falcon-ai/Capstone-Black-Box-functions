@@ -13,10 +13,12 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import norm
 from scipy.spatial import ConvexHull
 from optimisation.SVMFilterStrategy import SVMFilterStrategy
+from models.LLMCandidateGenerator import LLMCandidateGenerator
 from plotting.PlotUtils import PlotUtils
 from matplotlib.lines import Line2D
 from matplotlib.collections import PathCollection
 from scipy.stats import qmc   # for Sobol sequences
+from pathlib import Path
 
 
 class BayesOptUtils:
@@ -305,7 +307,7 @@ class BayesOptUtils:
         if sample_strategy == "cartesian":
             # Call your existing Cartesian grid builder
             samples = self.create_nd_grid(bounds, grid_size=grid_size,
-                                    downsample=downsample, stride=stride)
+                                    downsample=downsample_grid, stride=downsample_stride)
 
         elif sample_strategy == "lhs":
             if n_samples is None:
@@ -342,47 +344,66 @@ class BayesOptUtils:
                 training_mode="exploitation",
                 filter_strategy="good",
                 out_dir=None,
-                ):
+                config=None):
         """
-        End-to-end pipeline for Bayesian optimisation with a surrogate NN.
+        End-to-end pipeline for Bayesian optimisation.
+
+        This function supports two modes depending on config["model"]["type"]:
+        - "cnn": Uses a surrogate neural network (trainer) to fit the black-box function,
+        predict outputs, and compute acquisition functions.
+        - "llm": Uses an LLM candidate generator (LLMCandidateGenerator) to propose
+        candidate points via prompt patterns defined in config.yaml.
 
         Parameters
         ----------
         trainer : SurrogateTrainer
-            Surrogate model trainer instance (MLP, CNN, etc.).
+            Surrogate model trainer instance (CNN, MLP, etc.). Ignored if config["model"]["type"] == "llm".
         X : np.ndarray of shape (n_samples, n_features)
             Input feature matrix.
         y : np.ndarray of shape (n_samples,)
-            Output target values (radiation readings).
+            Output target values.
         xi_values : list of float
-            Exploration parameters for PI/EI acquisition functions.
+            Exploration parameters for PI/EI acquisition functions (CNN mode).
         kappa_values : list of float
-            Exploration parameters for UCB acquisition function.
+            Exploration parameters for UCB acquisition function (CNN mode).
         grid_sizes : list of int
-            Resolutions of the search grid to sweep.
+            Resolutions of the search grid to sweep (CNN mode).
         methods : list of str
-            Acquisition methods to sweep (e.g. ['PI','EI','UCB']).
+            Acquisition methods to sweep (e.g. ['PI','EI','UCB']) (CNN mode).
         apply_scaling : bool
-            Whether to scale y before training (StandardScaler).
+            Whether to scale y before training (CNN mode).
         filter_mode : str
-            Grid filtering strategy (e.g. 'gp', 'svm').
+            Grid filtering strategy (e.g. 'gp', 'svm') (CNN mode).
         downsample_grid : bool
-            Whether to downsample the grid along each axis.
+            Whether to downsample the grid along each axis (CNN mode).
         downsample_stride : int
-            Stride for downsampling (e.g. stride=2 → every 2nd point).
+            Stride for downsampling (CNN mode).
+        sample_strategy : str, default="cartesian"
+            Candidate generation strategy: "cartesian", "lhs", or "sobol" (CNN mode).
+        optimization_direction : str, default="max"
+            Optimisation direction ("max" or "min").
+        objective_mode : str, default="raw"
+            Target preprocessing mode: "raw", "zero_target", or "negated".
+        training_mode : str, default="exploitation"
+            Training mode for SVM filter strategy (CNN mode).
+        filter_strategy : str, default="good"
+            Candidate filtering strategy: "boundary" or "good" (CNN mode).
         out_dir : str or Path, optional
-            Directory to save plots and CSV outputs.
+            Directory to save plots and CSV outputs (CNN mode).
+        config : dict, optional
+            Experiment configuration. If provided and config["model"]["type"] == "llm",
+            trainer is ignored and LLM candidate generation is used.
 
         Returns
         -------
         results : dict
-            Dictionary keyed by grid_size with values:
+            Dictionary keyed by grid_size (CNN) or "llm" (LLM), with values:
             (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
 
             - X_grid_filtered : np.ndarray
-                Candidate grid points after filtering.
-            - mean_raw : np.ndarray
-                Surrogate predictions in **raw (de-scaled)** units.
+                Candidate grid points after filtering (CNN) or LLM candidate(s).
+            - mean_raw : np.ndarray or None
+                Surrogate predictions in raw units (CNN) or None (LLM).
             - bounds : list of tuple
                 Bounds for each input dimension.
             - best : dict
@@ -390,114 +411,118 @@ class BayesOptUtils:
             - query_results : list of dict
                 All candidate query results with acquisition scores.
             - acq_maps : dict
-                Acquisition maps keyed by (method, param).
+                Acquisition maps keyed by (method, param) (CNN) or empty (LLM).
         """
 
-        # Step 1: preprocess targets (scale if requested)
-        # Returns both scaled y and the fitted scaler for later inverse-transform
-        y_proc, y_scaler = self.preprocess_y(y, apply_scaling=apply_scaling, objective_mode=objective_mode)
-
-        # Step 2: train surrogate model on scaled targets
-        history = trainer.fit(X, y_proc, log_weights=True)
-        plotter = PlotUtils(out_dir)
-
-        # Ensure output directory exists
-        from pathlib import Path
-        if out_dir is not None:
-            out_dir = Path(out_dir)
-            out_dir.mkdir(parents=True, exist_ok=True)
-
-        # Plot training diagnostics
-        plotter.plot_loss_curve_and_weigth_evolution(history)
-
-        # Step 3: loop over grid sizes
         results = {}
-        acq_maps = {}   # store full acquisition maps per method/param
-        for grid_size in grid_sizes:
-            # Compute bounds from input data
+        acq_maps = {}
+
+        # --- LLM Candidate Path ---
+        if config and config.get("model", {}).get("type") == "llm":
+            llm_cfg = config["model"]["llm"]
+            llm_gen = LLMCandidateGenerator(llm_cfg)
+
+            dim = X.shape[1]
+            candidate = llm_gen.generate(X, y, dim=dim)
+            print("Output from LLM", candidate)
+
             bounds = self.compute_bounds(X, margin=0.1)
+            X_grid_filtered = np.array([candidate])  # single candidate
+            mean_raw = None
+            acq_maps = {}
 
-            # Build full grid and downsample if requested
-            #X_grid_full = self.create_nd_grid(bounds, int(grid_size),
-            #                                downsample_grid, downsample_stride)
-            
-            # Filter grid using chosen strategy (GP, SVM, etc.)
-            X_grid_full = self.create_sample_points(
-                            bounds=bounds,
-                            grid_size=grid_size,
-                            downsample_grid=downsample_grid,
-                            downsample_stride=downsample_stride,
-                            n_samples=None,
-                            random_state=None,
-                            sample_strategy=sample_strategy
-                    )
+            best = {
+                "method": "llm",
+                "params": None,
+                "score": None,
+                "x": candidate,
+                "predicted_y": None
+            }
 
-            # Filter grid using chosen strategy (GP, SVM, etc.)
-            X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
-                                            filter_mode=filter_mode)
+            query_results = [{
+                "method": "llm",
+                "xi": None,
+                "kappa": None,
+                "x": candidate,
+                "score": None,
+                "dim": len(candidate),
+                "predicted_y": None
+            }]
 
-            if X_grid_filtered.shape[0] == 0:
-                print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
-                continue
+            results["llm"] = (X_grid_filtered, mean_raw, bounds, best,
+                            query_results, acq_maps)
 
-            # Surrogate predictions (scaled space)
-            mean_scaled = trainer.predict(X_grid_filtered)
-            print(f"Predictions range (scaled): {np.min(mean_scaled):.4f} to {np.max(mean_scaled):.4f}")
-            # 🔧 Inverse-transform predictions back to raw units if scaler exists
-            mean_raw = mean_scaled
-            if y_scaler is not None:
-                print("Inverse-transforming predictions to raw units")
-                mean_raw = y_scaler.inverse_transform(mean_scaled.reshape(-1, 1)).ravel()
-                print(f"Predictions range (raw): {np.min(mean_raw):.4f} to {np.max(mean_raw):.4f}")
+        # --- CNN Surrogate Path ---
+        else:
+            # Step 1: preprocess targets
+            y_proc, y_scaler = self.preprocess_y(y, apply_scaling=apply_scaling,
+                                                objective_mode=objective_mode)
 
-            # Uncertainty heuristic: distance to nearest training point
+            # Step 2: train surrogate
+            history = trainer.fit(X, y_proc, log_weights=True)
+            plotter = PlotUtils(out_dir)
+            if out_dir is not None:
+                out_dir = Path(out_dir)
+                out_dir.mkdir(parents=True, exist_ok=True)
+            plotter.plot_loss_curve_and_weigth_evolution(history)
 
-            dist = pairwise_distances(X_grid_filtered, X)
-            std = np.min(dist, axis=1)
+            # Step 3: loop over grid sizes
+            for grid_size in grid_sizes:
+                bounds = self.compute_bounds(X, margin=0.1)
+                X_grid_full = self.create_sample_points(
+                    bounds=bounds,
+                    grid_size=grid_size,
+                    downsample_grid=downsample_grid,
+                    downsample_stride=downsample_stride,
+                    n_samples=None,
+                    random_state=None,
+                    sample_strategy=sample_strategy
+                )
 
-            # Sweep acquisition functions
-            query_results = []
-            for method in methods:
-                if method in ['PI', 'EI']:
-                    for xi in xi_values:
-                        # Acquisition must be computed in scaled space
-                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, xi=xi)
-                        best_index = np.argmax(acq_map)
-                        next_query = X_grid_filtered[best_index]
-                        score = acq_map[best_index]
+                X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
+                                                filter_mode=filter_mode)
+                if X_grid_filtered.shape[0] == 0:
+                    print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
+                    continue
 
-                        # Candidate prediction logged in raw units
-                        pred_val = mean_raw[best_index]
+                mean_scaled = trainer.predict(X_grid_filtered)
+                mean_raw = mean_scaled
+                if y_scaler is not None:
+                    mean_raw = y_scaler.inverse_transform(mean_scaled.reshape(-1, 1)).ravel()
 
-                        self.log_query_candidate(query_results, method, xi,
-                                                next_query, score, pred_val)
-                        acq_maps[(method, xi)] = acq_map
+                dist = pairwise_distances(X_grid_filtered, X)
+                std = np.min(dist, axis=1)
 
-                elif method == 'UCB':
-                    for kappa in kappa_values:
-                        # Acquisition must be computed in scaled space
-                        acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, kappa=kappa)
-                        best_index = np.argmax(acq_map)
-                        next_query = X_grid_filtered[best_index]
-                        score = acq_map[best_index]
+                query_results = []
+                for method in methods:
+                    if method in ['PI', 'EI']:
+                        for xi in xi_values:
+                            acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, xi=xi)
+                            best_index = np.argmax(acq_map)
+                            next_query = X_grid_filtered[best_index]
+                            score = acq_map[best_index]
+                            pred_val = mean_raw[best_index]
+                            self.log_query_candidate(query_results, method, xi,
+                                                    next_query, score, pred_val)
+                            acq_maps[(method, xi)] = acq_map
+                    elif method == 'UCB':
+                        for kappa in kappa_values:
+                            acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, kappa=kappa)
+                            best_index = np.argmax(acq_map)
+                            next_query = X_grid_filtered[best_index]
+                            score = acq_map[best_index]
+                            pred_val = mean_raw[best_index]
+                            self.log_query_candidate(query_results, method, kappa,
+                                                    next_query, score, pred_val)
+                            acq_maps[(method, kappa)] = acq_map
 
-                        # Candidate prediction logged in raw units
-                        pred_val = mean_raw[best_index]
+                if not query_results:
+                    print(f"⚠️ No valid candidates found for grid_size={grid_size}")
+                    continue
 
-                        self.log_query_candidate(query_results, method, kappa,
-                                                next_query, score, pred_val)
-                        acq_maps[(method, kappa)] = acq_map
-
-            if not query_results:
-                print(f"⚠️ No valid candidates found for grid_size={grid_size}")
-                continue
-
-            # Select best candidate
-            best = self.find_best_candidate(query_results)
-
-            # Store results for this grid size
-            results[grid_size] = (X_grid_filtered, mean_raw, bounds, best,
-                                query_results, acq_maps)
+                best = self.find_best_candidate(query_results)
+                results[grid_size] = (X_grid_filtered, mean_raw, bounds, best,
+                                    query_results, acq_maps)
 
         return results
 

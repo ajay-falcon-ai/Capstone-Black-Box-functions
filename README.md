@@ -67,3 +67,6 @@ For higher dimension functions the grid size becomes too large so I have tried u
 I have done this introducing a config parameter called 'sample_strategy'
     sample_strategy: "lhs"   # cartesian / latin hypercube sampling (lhs) / sobol
 I have renamed the file containing my submissions and their outputs more sensibly.
+### Week 8:
+I have used the emergence features of the OpenAI GPT-4.1 model to get candidate points/queries this week.
+I have added cofiguration that allows me to switch between the LLM and other models I have developed so far.

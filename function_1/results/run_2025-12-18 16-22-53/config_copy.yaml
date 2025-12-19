@@ -1,0 +1,68 @@
+data_module: Function1DataHandler
+data_class: Function1DataHandler
+source_label: week-x
+yield_col: radiation-reading
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.0
+  - 0.01
+  kappa_values:
+  - 0.5
+  - 1.0
+  grid_sizes:
+  - 200
+  apply_scaling: true
+  filter_mode: gp
+  training_mode: exploration
+  filter_strategy: good
+  downsample_grid: false
+  downsample_stride: 2
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 2
+    lr: 0.001
+    epochs: 500
+    patience: 30
+  llm: null
+  enabled: true
+  provider: openai
+  model: gpt-4.1
+  temperature: 0.7
+  max_tokens: 256
+  prompt_patterns:
+    exploration:
+      pattern: zero-shot
+      template: Suggest {dim}-D candidate solutions.
+    mid_phase:
+      pattern: few-shot
+      examples:
+      - '[0.1, 0.5, 0.9]'
+      - '[0.2, 0.6, 0.8]'
+      template: Given these examples, propose a new candidate.
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5
+display:
+  matplotlib:
+    figsize:
+    - 12
+    - 10
+    dpi: 100
+    font_size: 12
+  pandas:
+    display_max_rows: null
+    display_max_colwidth: null
+    display_width: 0
+    display_expand_frame_repr: false
