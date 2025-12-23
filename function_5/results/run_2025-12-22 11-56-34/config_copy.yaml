@@ -1,0 +1,66 @@
+data_module: Function5DataHandler
+data_class: Function5DataHandler
+source_label: week-x
+yield_col: yield
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.0
+  - 0.01
+  kappa_values:
+  - 0.5
+  - 1.0
+  grid_sizes:
+  - 100
+  apply_scaling: true
+  filter_mode: gp
+  training_mode: exploration
+  filter_strategy: boundary
+  downsample_grid: true
+  downsample_stride: 4
+  optimization_direction: max
+model:
+  type: llm
+  params:
+    input_dim: 4
+    lr: 0.001
+    epochs: 500
+    patience: 20
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.9
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. Note that the function is unimodal with a single peak where yield
+      is maximised. Return only a JSON array of numbers to 6 decimals, e.g. [0.120645,
+      0.4578095, 0.765645, 0.347838].
+
+      '
+plot:
+  scale_factor: 2000.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5

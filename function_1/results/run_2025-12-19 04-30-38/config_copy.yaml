@@ -1,0 +1,79 @@
+data_module: Function1DataHandler
+data_class: Function1DataHandler
+source_label: week-x
+yield_col: radiation-reading
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.0
+  - 0.01
+  kappa_values:
+  - 0.5
+  - 1.0
+  grid_sizes:
+  - 400
+  apply_scaling: true
+  sample_strategy: lhs
+  filter_mode: gp
+  training_mode: exploitation
+  filter_strategy: good
+  downsample_grid: false
+  downsample_stride: 2
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 2
+    lr: 0.001
+    epochs: 500
+    patience: 30
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.9
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. Note that only proximity yeilds a non-zero reading in a contamination
+      radiation field. Return only a JSON array of numbers to six decimals, e.g. [0.120645,
+      0.4578095].
+
+      '
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5
+display:
+  matplotlib:
+    figsize:
+    - 12
+    - 10
+    dpi: 100
+    font_size: 12
+  pandas:
+    display_max_rows: null
+    display_max_colwidth: null
+    display_width: 0
+    display_expand_frame_repr: false
