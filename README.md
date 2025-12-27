@@ -1,27 +1,23 @@
 # PROJECT TITLE
 Capstone Black Box functions
 
-## NON-TECHNICAL EXPLANATION OF YOUR PROJECT
+## NON-TECHNICAL EXPLANATION OF THE PROJECT
 Project overview:
 As part of the capstone project, we have been given eight synthetic black-box functions for optimising (BBO). Each of the function mimics real-world complexities, with feature such as non-linearity and multiple local maxima. We have been given an initial set of data and we are to query each function weekly and arrive at a query that gives the maximum value for each of the functions by the end of the project.
-The BBO capstone project aims to simulate real world scenarios where, often, the data in the sparse, the optimum solution is unknown. The process to get the optimum solution requires domain knowledge, data-driven decision making, trial and error with different ML techniques and often intuition.
-I work in the retail industry that collects a lot of data, both customer and transactional. Understanding customer behaviours and motivations is key to achieve growth in the business.
+The BBO capstone project aims to simulate real world scenarios where, often, the data is sparse, the optimum solution is unknown. The process to get the optimum solution requires domain knowledge, data-driven decision making, trial and error with different ML techniques and often intuition.
 
 ## DATA
 Inputs and outputs:
 There is an initial set of data, both input and output provided for each of the function. Using these I have developed a model that predicts the best next query.
 The first week starts with initial set of inputs and outputs provided. The model that I have developed accepts these and input and generates the best query based on the values I have explained above.
 I have plotted the inputs and outputs on a scatter plot and tried to identify the combinations of the inputs (features) that give the best query.
+A detailed description is available in the project’s [Data Sheet](/docs/Datasheet%20for%20BBO%20Capstone%20project.pdf).
 
 ## CHALLENGES
 Challenge objectives:
 The eight BBO functions represent real life optimisation challenges. In some cases, the objective is a natural minimisation (e.g. side effects) in which case a transformation (such as negation) is applied. 
-•	Technical approach
-I have used Bayesian optimisation with GaussianProcessRegressor trained it with the following options.
-•	Different acquisition strategies like PI, EI and UCB with different values 
-•	Grid size of 100
-•	RBF kernel.
-Then I have chosen the query with the highest acquisition score.
+A detailed description is available in the [Model Card](/docs/Model%20Card%20BBO%20Capstone%20Project.pdf)
+
 ## Weekly log
 ### Week 1: 
 I have tried different acquisition functions, PI, EI, UCB and since the ask is to maximise, I have picked the points with the maximum value.
