@@ -18,6 +18,8 @@ Challenge objectives:
 The eight BBO functions represent real life optimisation challenges. In some cases, the objective is a natural minimisation (e.g. side effects) in which case a transformation (such as negation) is applied. 
 A detailed description is available in the [Model Card](/docs/Model%20Card%20BBO%20Capstone%20Project.pdf)
 
+This [series of plots](/results/Results%20by%20function.md) show the results of the model for each of the functions over the past few weeks. 
+
 ## Weekly log
 ### Week 1: 
 I have tried different acquisition functions, PI, EI, UCB and since the ask is to maximise, I have picked the points with the maximum value.
