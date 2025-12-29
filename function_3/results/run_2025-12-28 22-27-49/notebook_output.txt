@@ -1,0 +1,91 @@
+Inputs shape: (24, 3)
+Outputs shape: (24,)
+First 20 rows of raw data:
+    compound-1  compound-2  compound-3  trans-side-effect  source
+18    0.448900    0.470829    0.414315          -0.020404  week-4
+23    0.450000    0.470000    0.400000          -0.029032  week-9
+16    0.303031    0.242424    0.474748          -0.030680  week-2
+3     0.492581    0.611593    0.340176          -0.034835    file
+13    0.600097    0.725136    0.066089          -0.036378    file
+22    0.394576    0.615328    0.367214          -0.037692  week-8
+10    0.220549    0.297825    0.343555          -0.046947    file
+4     0.134622    0.219917    0.458206          -0.048008    file
+17    0.263346    0.138532    0.363743          -0.048179  week-3
+14    0.965995    0.861120    0.566829          -0.056758    file
+1     0.242114    0.644074    0.272433          -0.087963    file
+9     0.170477    0.697032    0.149169          -0.094190    file
+11    0.666014    0.671985    0.246295          -0.105965    file
+5     0.345523    0.941360    0.269363          -0.110621    file
+15    0.464647    0.666667    0.171718          -0.111186  week-1
+2     0.534906    0.398501    0.173389          -0.111415    file
+0     0.171525    0.343917    0.248737          -0.112122    file
+7     0.645503    0.397143    0.919771          -0.113869    file
+19    0.357938    0.038532    0.517008          -0.117539  week-5
+12    0.046809    0.231360    0.770618          -0.118048    file
+Creating utilities and trainer...
+Optimization direction: max
+Objective mode: raw
+Running Bayesian optimisation flow with config: {"methods": ["PI", "EI", "UCB"], "xi_values": [0.1, 0.2], "kappa_values": [1.0, 2.0], "grid_sizes": [200], "apply_scaling": true, "sample_strategy": "cartesian", "filter_mode": null, "training_mode": "exploration", "filter_strategy": null, "downsample_grid": true, "downsample_stride": 2, "optimization_direction": "max"}
+/Users/ajay.amrite/Documents/AI Course/Capstone/Black-Box functions/models/SurrogateNN.py:117: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /Users/runner/work/_temp/anaconda/conda-bld/pytorch_1711403226260/work/aten/src/ATen/native/ReduceOps.cpp:1760.)
+  "std": param.data.std().item()
+Epoch 1/500, Train Loss: 1.174700, Val Loss: 0.463588
+Epoch 50/500, Train Loss: 0.233780, Val Loss: 1.013333
+Early stopping at epoch 51, best val_loss=0.463588
+Using 3 dimensions, grid size per axis: 200, downsample: True, stride: 2
+Points before downsampling: 8000000
+Points after downsampling: 1000000
+Final grid shape: (1000000, 3)
+sample_strategy=cartesian, Final sample shape: (1000000, 3)
+⚠️ No filtering applied to candidate grid
+Total number of points to evaluate: 6
+{'method': 'PI', 'xi': 0.1, 'kappa': None, 'x': array([0.01      , 1.03617712, 1.0854503 ]), 'score': 0.15624772854848074, 'dim': 3, 'predicted_y': -0.059541147}
+{'method': 'PI', 'xi': 0.2, 'kappa': None, 'x': array([0.01      , 1.03617712, 1.0854503 ]), 'score': 0.12074531047109993, 'dim': 3, 'predicted_y': -0.059541147}
+{'method': 'EI', 'xi': 0.1, 'kappa': None, 'x': array([0.01      , 1.03617712, 1.0854503 ]), 'score': 0.050685975296273736, 'dim': 3, 'predicted_y': -0.059541147}
+{'method': 'EI', 'xi': 0.2, 'kappa': None, 'x': array([0.01      , 1.03617712, 1.0854503 ]), 'score': 0.03688829293106441, 'dim': 3, 'predicted_y': -0.059541147}
+{'method': 'UCB', 'xi': None, 'kappa': 1.0, 'x': array([0.01      , 1.03617712, 1.0854503 ]), 'score': 1.0951460583610966, 'dim': 3, 'predicted_y': -0.059541147}
+{'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([0.4769726 , 1.03617712, 1.0854503 ]), 'score': 1.7250441412455222, 'dim': 3, 'predicted_y': -0.06792138}
+🔍 Best candidate (highest acquisition score):
+Method: UCB
+kappa: 2.0
+Dimensions: 3
+x: [0.476973, 1.036177, 1.08545 ]
+Score: 1.725044
+Base dataframe built with shape: (24, 5)
+
+=== Results for grid_size=200 ===
+Saved dataframe to: results/run_2025-12-28 22-27-49/df_grid_200_stride2_None_max_raw_lr0.001_ep500.csv
+Best candidate: {'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([0.4769726 , 1.03617712, 1.0854503 ]), 'score': 1.7250441412455222, 'dim': 3, 'predicted_y': -0.06792138}
+    compound-1  compound-2  compound-3  trans-side-effect  source  trans-side-effect-scaled
+0     0.476973    1.036177    1.085450           1.725044  week-x                 10.000000
+1     0.010000    1.036177    1.085450           1.095146  week-x                  6.348510
+2     0.010000    1.036177    1.085450           0.156248  week-x                  0.905761
+3     0.010000    1.036177    1.085450           0.120745  week-x                  0.699955
+4     0.010000    1.036177    1.085450           0.050686  week-x                  0.293824
+5     0.010000    1.036177    1.085450           0.036888  week-x                  0.213840
+6     0.448900    0.470829    0.414315          -0.020404  week-4                 -0.118283
+7     0.450000    0.470000    0.400000          -0.029032  week-9                 -0.168295
+8     0.303031    0.242424    0.474748          -0.030680  week-2                 -0.177852
+9     0.492581    0.611593    0.340176          -0.034835    file                 -0.201939
+10    0.600097    0.725136    0.066089          -0.036378    file                 -0.210881
+11    0.394576    0.615328    0.367214          -0.037692  week-8                 -0.218499
+12    0.220549    0.297825    0.343555          -0.046947    file                 -0.272152
+13    0.134622    0.219917    0.458206          -0.048008    file                 -0.278298
+14    0.263346    0.138532    0.363743          -0.048179  week-3                 -0.279293
+15    0.965995    0.861120    0.566829          -0.056758    file                 -0.329026
+16    0.242114    0.644074    0.272433          -0.087963    file                 -0.509917
+17    0.170477    0.697032    0.149169          -0.094190    file                 -0.546012
+18    0.666014    0.671985    0.246295          -0.105965    file                 -0.614274
+19    0.345523    0.941360    0.269363          -0.110621    file                 -0.641264
+20    0.464647    0.666667    0.171718          -0.111186  week-1                 -0.644538
+21    0.534906    0.398501    0.173389          -0.111415    file                 -0.645866
+22    0.171525    0.343917    0.248737          -0.112122    file                 -0.649967
+23    0.645503    0.397143    0.919771          -0.113869    file                 -0.660090
+24    0.357938    0.038532    0.517008          -0.117539  week-5                 -0.681367
+25    0.046809    0.231360    0.770618          -0.118048    file                 -0.684320
+26    0.137356    0.196578    0.292441          -0.126356  week-7                 -0.732481
+27    0.746912    0.284196    0.226300          -0.131461    file                 -0.762071
+28    0.116130    0.051462    0.314168          -0.148291  week-6                 -0.859636
+29    0.151837    0.439991    0.990882          -0.398926    file                 -2.312552
+
+Pipeline finished.
+Pipeline finished. Results keys: [200]

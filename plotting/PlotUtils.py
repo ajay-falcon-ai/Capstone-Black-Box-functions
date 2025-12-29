@@ -719,3 +719,218 @@ class PlotUtils:
             plt.savefig(save_path)
         else:
             plt.show()
+
+    def plot_svm_with_candidates(
+        self,
+        svm_clf, scaler,
+        X_train, y_train,
+        candidates_raw,
+        filtered_candidates=None,
+        grid_points=200
+    ):
+        """
+        Adaptive visualisation of SVM filtering across any input dimensionality.
+
+        This function automatically chooses the best visualisation mode:
+
+        ────────────────────────────────────────────────────────────────
+        DIMENSION  |  VISUALISATION MODE
+        ────────────────────────────────────────────────────────────────
+        2D         |  Full contour plot:
+                |    - SVM decision function (heatmap)
+                |    - Decision boundary (solid black line)
+                |    - Margins (dashed black lines)
+                |    - Training points (red/blue)
+                |    - Candidate grid (grey)
+                |    - Filtered candidates (lime)
+        ────────────────────────────────────────────────────────────────
+        3D         |  3D scatter plot:
+                |    - Training points
+                |    - Candidate grid
+                |    - Filtered candidates
+                |  (Decision boundary cannot be contoured in 3D
+                |   without slicing, so we show the point clouds.)
+        ────────────────────────────────────────────────────────────────
+        >3D        |  PCA projection to 2D:
+                |    - Project all points into 2D
+                |    - Plot training, candidate, and filtered points
+                |  (Decision boundary is not shown because PCA
+                |   distorts the SVM geometry.)
+        ────────────────────────────────────────────────────────────────
+
+        This plot is purely diagnostic — it helps you understand how the
+        SVM filter behaves, how the threshold affects the filtered region,
+        and whether the SVM is learning a meaningful boundary.
+        What you will see on the plot:
+            - Red/blue background: SVM confidence regions (decision function values)
+            - Solid black line: SVM decision boundary (decision_function = 0)
+            - Dashed black lines: SVM margins (decision_function = ±1)
+            - Red/blue dots: Training points (labelled data)
+            - Grey dots: All candidate grid points (unfiltered)
+            - Lime dots: Filtered candidate points (kept by SVM filter)
+
+        """
+        # The file where the plot will be saved
+        fname = f"plot_svm_with_candidates{len(y_train)}.png"
+        full_path = os.path.join(self.output_dir, fname)
+
+
+        # Determine dimensionality
+        d = X_train.shape[1]
+
+        # =====================================================================
+        # CASE 1 — 2D INPUT (full contour plot)
+        # =====================================================================
+        if d == 2:
+            # ---------------------------------------------------------
+            # 1. Build a mesh grid covering the training data region
+            # ---------------------------------------------------------
+            x_min, x_max = X_train[:, 0].min() - 0.2, X_train[:, 0].max() + 0.2
+            y_min, y_max = X_train[:, 1].min() - 0.2, X_train[:, 1].max() + 0.2
+
+            xx, yy = np.meshgrid(
+                np.linspace(x_min, x_max, grid_points),
+                np.linspace(y_min, y_max, grid_points)
+            )
+
+            # ---------------------------------------------------------
+            # 2. Evaluate the SVM decision function on the grid
+            # ---------------------------------------------------------
+            grid = np.c_[xx.ravel(), yy.ravel()]          # flatten grid
+            grid_scaled = scaler.transform(grid)          # scale grid
+            Z = svm_clf.decision_function(grid_scaled)    # decision values
+            Z = Z.reshape(xx.shape)                       # reshape for contour plot
+
+            # ---------------------------------------------------------
+            # 3. Plot SVM decision landscape
+            # ---------------------------------------------------------
+            plt.figure(figsize=(8, 6))
+
+            # Background colour field (SVM confidence)
+            plt.contourf(xx, yy, Z, levels=50, cmap="coolwarm", alpha=0.6)
+
+            # Solid black line = decision boundary (Z = 0)
+            plt.contour(xx, yy, Z, levels=[0], colors="black", linewidths=2)
+
+            # Dashed black lines = margins (Z = ±1)
+            plt.contour(xx, yy, Z, levels=[-1, 1], colors="black", linestyles="--")
+
+            # ---------------------------------------------------------
+            # 4. Plot training points
+            # ---------------------------------------------------------
+            plt.scatter(
+                X_train[:, 0], X_train[:, 1],
+                c=y_train, cmap="bwr", edgecolor="k", s=70,
+                label="Training points"
+            )
+
+            # ---------------------------------------------------------
+            # 5. Plot full candidate grid (unfiltered)
+            # ---------------------------------------------------------
+            plt.scatter(
+                candidates_raw[:, 0], candidates_raw[:, 1],
+                c="grey", alpha=0.3, s=20,
+                label="Candidate grid"
+            )
+
+            # ---------------------------------------------------------
+            # 6. Plot filtered candidates (highlighted)
+            # ---------------------------------------------------------
+            if filtered_candidates is not None and len(filtered_candidates) > 0:
+                plt.scatter(
+                    filtered_candidates[:, 0], filtered_candidates[:, 1],
+                    c="lime", edgecolor="k", s=50,
+                    label="Filtered candidates"
+                )
+
+            # ---------------------------------------------------------
+            # 7. Final plot formatting
+            # ---------------------------------------------------------
+            plt.title("SVM Decision Boundary with Candidate Grid and Filtered Points (2D)")
+            plt.xlabel("x1")
+            plt.ylabel("x2")
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(full_path, dpi=300, bbox_inches="tight")
+            plt.show()
+            return
+
+        # =====================================================================
+        # CASE 2 — 3D INPUT (3D scatter plot)
+        # =====================================================================
+        if d == 3:
+            fig = plt.figure(figsize=(9, 7))
+            ax = fig.add_subplot(111, projection='3d')
+
+            # Training points
+            ax.scatter(
+                X_train[:, 0], X_train[:, 1], X_train[:, 2],
+                c=y_train, cmap="bwr", edgecolor="k", s=50,
+                label="Training points"
+            )
+
+            # Candidate grid
+            ax.scatter(
+                candidates_raw[:, 0], candidates_raw[:, 1], candidates_raw[:, 2],
+                c="grey", alpha=0.2, s=10, label="Candidate grid"
+            )
+
+            # Filtered candidates
+            if filtered_candidates is not None and len(filtered_candidates) > 0:
+                ax.scatter(
+                    filtered_candidates[:, 0], filtered_candidates[:, 1], filtered_candidates[:, 2],
+                    c="lime", edgecolor="k", s=40,
+                    label="Filtered candidates"
+                )
+
+            ax.set_title("SVM Filtering (3D Scatter Projection)")
+            ax.set_xlabel("x1")
+            ax.set_ylabel("x2")
+            ax.set_zlabel("x3")
+            ax.legend()
+            plt.savefig(full_path, dpi=300, bbox_inches="tight")
+            plt.show()
+            return
+
+        # =====================================================================
+        # CASE 3 — HIGH-DIMENSIONAL INPUT (PCA projection to 2D)
+        # =====================================================================
+        pca = PCA(n_components=2)
+        X_train_2d = pca.fit_transform(X_train)
+        candidates_2d = pca.transform(candidates_raw)
+
+        filtered_2d = None
+        if filtered_candidates is not None:
+            filtered_2d = pca.transform(filtered_candidates)
+
+        plt.figure(figsize=(8, 6))
+
+        # Candidate grid
+        plt.scatter(
+            candidates_2d[:, 0], candidates_2d[:, 1],
+            c="grey", alpha=0.3, s=20,
+            label="Candidate grid (PCA)"
+        )
+
+        # Training points
+        plt.scatter(
+            X_train_2d[:, 0], X_train_2d[:, 1],
+            c=y_train, cmap="bwr", edgecolor="k", s=70,
+            label="Training points (PCA)"
+        )
+
+        # Filtered candidates
+        if filtered_2d is not None and len(filtered_2d) > 0:
+            plt.scatter(
+                filtered_2d[:, 0], filtered_2d[:, 1],
+                c="lime", edgecolor="k", s=50,
+                label="Filtered candidates (PCA)"
+            )
+
+        plt.title("SVM Filtering (High-Dimensional PCA Projection)")
+        plt.xlabel("PC1")
+        plt.ylabel("PC2")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(full_path, dpi=300, bbox_inches="tight")
+        plt.show()

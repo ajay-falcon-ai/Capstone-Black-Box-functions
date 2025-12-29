@@ -1,0 +1,9 @@
+How to interpret the plot correctly
+Here’s the right mental model:
+• Grey points = all possible candidates
+• Lime points = candidates the SVM thinks are worth exploring
+• Red/blue background = SVM confidence, not objective value
+• Black line = SVM decision boundary
+• Concentric circles = SVM level sets, not optima
+• The optimum = chosen later by EI/PI/UCB on the filtered grid
+So the center of the circles is not the optimum — it’s just where the SVM’s geometry happens to be symmetric.

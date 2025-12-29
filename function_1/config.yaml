@@ -9,16 +9,16 @@ yield_col: "radiation-reading"
 bayesopt:
   methods: ["PI", "EI", "UCB"]
   # Acquisition parameters
-  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
-  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
-  grid_sizes: [400]
+  xi_values: [0.0, 0.01, 0.1]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [0.5, 1.0, 2.0] # lower = exploit, higher = explore
+  grid_sizes: [600]
   apply_scaling: true
   # Filtering strategy
   sample_strategy: "lhs"   # cartesian / latin hypercube sampling (lhs) / sobol
 
   filter_mode: "gp"
-  training_mode: "exploration"   # exploitation/exploration/hybrid
-  filter_strategy: "good"         # boundary (explore) or good (exploit)
+  filter_training_mode: "exploration"   # exploitation/exploration/hybrid
+  filter_strategy: "boundary"         # boundary (explore) or good (exploit)
 
   downsample_grid: false     # to downsample or not.
   downsample_stride: 2      # higher stride means more downsampling.
@@ -26,7 +26,7 @@ bayesopt:
 
 
 model:
-  type: llm   # or "cnn" or llm
+  type: cnn   # or "cnn" or llm
   params:
     input_dim: 2
     lr: 0.001
@@ -77,7 +77,7 @@ model:
 
 plot:
   scale_factor: 1.0
-  yield_scale_factor: 1.0
+  yield_scale_factor: 100.0
   source_color: red
   source_marker_style: x
   show_candidates: true   # <-- new flag

@@ -9,23 +9,23 @@ yield_col: "trans-side-effect"
 bayesopt:
   methods: ["PI", "EI", "UCB"]
   # Acquisition parameters
-  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
-  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
+  xi_values: [0.1, 0.2]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [1.0, 2.0] # lower = exploit, higher = explore
   grid_sizes: [200]
   apply_scaling: true
   # Filtering strategy
-
-  filter_mode: "gp"
-  training_mode: "exploration"   # exploitation/exploration/hybrid
-  filter_strategy: "boundary"         # boundary (explore) or good (exploit)
+  sample_strategy: "cartesian"   # cartesian / latin hypercube sampling (lhs) / sobol
+  filter_mode: null
+  filter_training_mode: "exploration"   # exploitation/exploration/hybrid
+  filter_strategy: null         # boundary (explore) or good (exploit)
 
   downsample_grid: true     # to downsample or not.
-  downsample_stride: 4      # higher stride means more downsampling.
+  downsample_stride: 2      # higher stride means more downsampling.
   optimization_direction: "max"   # min or "max"
 
 
 model:
-  type: llm   # or "cnn"
+  type: cnn   # llm or "cnn"
   params:
     input_dim: 3
     lr: 0.001

@@ -7,26 +7,26 @@ source_label: "week-x"
 yield_col: "score"
 
 bayesopt:
-  methods: ["PI", "EI", "UCB"]
+  optimization_direction: "max"   # min or "max"
+  methods: ["EI", "UCB"]
   # Acquisition parameters
-  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
-  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
-  grid_sizes: [100]
+  xi_values: [0.0, 0.1, 0.2]   # 0.0 = pure exploitation, >0 = more exploration
+  kappa_values: [1.0, 2.0] # lower = exploit, higher = explore
+  grid_sizes: [4000]
   apply_scaling: true
-
+  # sampling strategy
   sample_strategy: "sobol"   # cartesian / latin hypercube sampling (lhs) / sobol
   # Filtering strategy
-  filter_mode: "median"
-  training_mode: "exploitation"   # exploitation/exploration/hybrid
-  filter_strategy: "boundary"         # boundary (explore) or good (exploit)
+  filter_mode: null
+  filter_training_mode: null   # exploitation/exploration/hybrid
+  filter_strategy: null         # boundary (explore) or good (exploit)
 
-  downsample_grid: true     # to downsample or not.
+  downsample_grid: false     # to downsample or not.
   downsample_stride: 6      # higher stride means more downsampling.
-  optimization_direction: "max"   # min or "max"
 
 
 model:
-  type: llm   # or "cnn"
+  type: cnn   # "llm" or "cnn"
   params:
     input_dim: 6
     lr: 0.001

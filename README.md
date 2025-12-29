@@ -71,3 +71,19 @@ I have added cofiguration that allows me to switch between the LLM and other mod
 ### Week 9:
 This week I have gone a step further in the details I have provided in the prompts. I have included specific characteristics of the function for which I am asking the candidate point. For example, for function 1, I have added the following text to the prompt
 "Note that only proximity yields a non-zero reading in a contamination radiation field"
+### Week 10:
+Moved away from using llm prompts and back to using the surrogate model and bayesian optimisation techniques.
+Function 1: Continued to use SVM filter because there is a clear boundary between high value and low value areas.
+Added a plot to show the SVM filtering in action.
+Function 2: Removed the use of SVM filter because 
+• The function is not sparse
+• There is no zero‑region
+• There is no classification boundary
+• Every point returns a meaningful value
+• Filtering would remove useful exploration regions
+Function 3: Removed the use of GP filter since it might over smoothen. The surrogate already smoothens the noise.
+Function 4: The function is in 4D space and it has several local optima, so I have made the grid size really big and used random and sobol sampling to reduce the computation required. The attempt has been to cast the net as wide as possible.
+Function 5: This function is a unimodal function (single peak) therefore in this weeks submissions, i have focused on exploitation and fast convergence to the peak.
+Function 6: The function is unimodal function so for week 10 I have shifted focus to exploitation and quick convergence. Sampling on 3000 points using sobol.
+Function 7: Balanced exploration with exploitation to get the point with the best score. Sticking with sobol as the sampling strategy because of high dimensions. Sampling 4000 points.
+Function 8: Quite similar to function 6 and 4, I have balanced between exploring and exploitation (EI and UCB). Stuck to sobol with 10000 sample points.

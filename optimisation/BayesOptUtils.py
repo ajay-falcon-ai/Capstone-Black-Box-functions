@@ -63,10 +63,12 @@ class BayesOptUtils:
             bounds.append((low, high))
         return bounds
 
-    def filter_grid(self, X, y, X_grid, filter_mode='gp', percentile=90, threshold=0.2, training_mode='exploitation', filter_strategy='good'):
-        strategy = SVMFilterStrategy(filter_mode, percentile, threshold, training_mode=training_mode, filter_strategy=filter_strategy)
+    def filter_grid(self, X, y, X_grid, filter_mode='gp', percentile=90, threshold=0.2, filter_training_mode='exploitation', filter_strategy='good', plotter=None):
+        strategy = SVMFilterStrategy(filter_mode, percentile, threshold, filter_training_mode=filter_training_mode, filter_strategy=filter_strategy)
         strategy.fit(X, y, X_grid=X_grid)
-        return strategy.filter(X_grid)
+        #if plotter is not None:
+        #    plotter.plot_svm_boundary(strategy.svm_clf, strategy.scaler, X, y)
+        return strategy.filter(X_grid, plotter=plotter)
 
     # --- Acquisition functions ---
     def compute_acquisition(self, method, mean, std, y, xi=0.1, kappa=2.0, direction="max"):
@@ -323,6 +325,15 @@ class BayesOptUtils:
             for j, (low, high) in enumerate(bounds):
                 samples[:, j] = low + unit_samples[:, j] * (high - low)
 
+        elif sample_strategy == "random":
+            # Uniform random sampling in each dimension
+            if n_samples is None:
+                n_samples = grid_size
+            rng = np.random.default_rng(random_state)
+            samples = np.zeros((n_samples, dim))
+            for j, (low, high) in enumerate(bounds):
+                samples[:, j] = rng.uniform(low, high, size=n_samples)
+
         else:
             raise ValueError(f"Unsupported sample_strategy: {sample_strategy}")
 
@@ -341,7 +352,7 @@ class BayesOptUtils:
                 sample_strategy="cartesian",
                 optimization_direction="max",
                 objective_mode="raw",
-                training_mode="exploitation",
+                filter_training_mode="exploitation",
                 filter_strategy="good",
                 out_dir=None,
                 config=None):
@@ -384,7 +395,7 @@ class BayesOptUtils:
             Optimisation direction ("max" or "min").
         objective_mode : str, default="raw"
             Target preprocessing mode: "raw", "zero_target", or "negated".
-        training_mode : str, default="exploitation"
+        filter_training_mode : str, default="exploitation"
             Training mode for SVM filter strategy (CNN mode).
         filter_strategy : str, default="good"
             Candidate filtering strategy: "boundary" or "good" (CNN mode).
@@ -478,9 +489,13 @@ class BayesOptUtils:
                     random_state=None,
                     sample_strategy=sample_strategy
                 )
-
-                X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
-                                                filter_mode=filter_mode)
+                if filter_mode is None:
+                    print("⚠️ No filtering applied to candidate grid")
+                    X_grid_filtered = X_grid_full
+                else:
+                    X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
+                                                filter_mode=filter_mode, filter_training_mode=filter_training_mode, filter_strategy=filter_strategy,
+                                                plotter=plotter)
                 if X_grid_filtered.shape[0] == 0:
                     print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
                     continue

@@ -10,22 +10,23 @@ bayesopt:
   methods: ["PI", "EI", "UCB"]
   # Acquisition parameters
   xi_values: [0.01, 0.01, 0.3]   # 0.0 = pure exploitation, >0 = more exploration
-  kappa_values: [1.0, 2.0, 3.0] # lower = exploit, higher = explore
-  grid_sizes: [200]
+  kappa_values: [1.0, 2.0, 3.0]  # lower = exploit, higher = explore
+  grid_sizes: [3000]
   apply_scaling: true
   # Filtering strategy
+  filter_mode: null
+  filter_training_mode: "exploration"   # exploitation/exploration/hybrid
+  filter_strategy: null          # boundary (explore) or good (exploit)
+  # sampling strategy
+  sample_strategy: "sobol"   # cartesian / latin hypercube sampling (lhs) / sobol / random
 
-  filter_mode: "gp"
-  training_mode: "exploration"   # exploitation/exploration/hybrid
-  filter_strategy: "boundary"         # boundary (explore) or good (exploit)
-
-  downsample_grid: true     # to downsample or not.
-  downsample_stride: 8      # higher stride means more downsampling.
-  optimization_direction: "max"   # min or "max"
+  downsample_grid: false         # to downsample or not.
+  downsample_stride: 8           # higher stride means more downsampling. valid only if downsample_grid is true.
+  optimization_direction: "max"  # min or "max"
 
 
 model:
-  type: llm   # or "cnn"
+  type: cnn                      # "llm" or "cnn"
   params:
     input_dim: 4
     lr: 0.001
@@ -33,12 +34,12 @@ model:
     patience: 20
   llm:
     enabled: true
-    provider: "openai"        # "openai" or "azure", "anthropic", etc.
-    model: "gpt-4.1"          # model identifier
-    temperature: 0.7          # controls randomness
-    max_tokens: 256           # response length limit
-    top_p: 0.9        # nucleus sampling
-    top_k: 40         # token cutoff
+    provider: "openai"           # "openai" or "azure", "anthropic", etc.
+    model: "gpt-4.1"             # model identifier
+    temperature: 0.7             # controls randomness
+    max_tokens: 256              # response length limit
+    top_p: 0.9                   # nucleus sampling
+    top_k: 40                    # token cutoff
 
     prompt_pattern: "zero-shot"
     template: |
@@ -79,5 +80,5 @@ plot:
   yield_scale_factor: 200.0
   source_color: red
   source_marker_style: "x"
-  show_candidates: true   # <-- new flag
+  show_candidates: true          # <-- new flag
   figsize: [6, 5]

@@ -7,25 +7,26 @@ source_label: "week-x"
 yield_col: "flavour-score"
 
 bayesopt:
-  methods: ["PI", "EI", "UCB"]
+  methods: ["EI"]
   # Acquisition parameters
-  xi_values: [0.0, 0.01]   # 0.0 = pure exploitation, >0 = more exploration
-  kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
-  grid_sizes: [100]
+  xi_values: [0.0, 0.1]   # 0.0 = pure exploitation, >0 = more exploration
+  #kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
+  grid_sizes: [3000]  # number of candidate points to sample on each iteration. sample point defaults to this value is not provided.
   apply_scaling: true
   # Filtering strategy
+  filter_mode: null
+  filter_training_mode: null   # exploitation/exploration/hybrid
+  filter_strategy: null         # boundary (explore) or good (exploit)
+  # sampling strategy
+  sample_strategy: "sobol"   # cartesian / latin hypercube sampling (lhs) / sobol / random
 
-  filter_mode: "gp"
-  training_mode: "exploitation"   # exploitation/exploration/hybrid
-  filter_strategy: "good"         # boundary (explore) or good (exploit)
-
-  downsample_grid: true     # to downsample or not.
+  downsample_grid: false     # to downsample or not.
   downsample_stride: 5      # higher stride means more downsampling.
   optimization_direction: "max"   # min or "max"
 
 
 model:
-  type: llm   # or "cnn"
+  type: cnn   # "llm" or "cnn"
   params:
     input_dim: 5
     lr: 0.001

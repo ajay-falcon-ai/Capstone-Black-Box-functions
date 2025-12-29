@@ -1,0 +1,70 @@
+data_module: Function8DataHandler
+data_class: Function8DataHandler
+source_label: week-x
+yield_col: output
+bayesopt:
+  optimization_direction: max
+  methods:
+  - EI
+  - UCB
+  xi_values:
+  - 0.0
+  - 0.1
+  - 0.2
+  - 0.3
+  kappa_values:
+  - 1.0
+  - 2.0
+  - 3.0
+  grid_sizes:
+  - 10000
+  apply_scaling: true
+  sample_strategy: sobol
+  filter_mode: null
+  filter_training_mode: null
+  filter_strategy: null
+  downsample_grid: false
+  downsample_stride: 6
+model:
+  type: cnn
+  params:
+    input_dim: 8
+    lr: 0.001
+    epochs: 600
+    patience: 20
+  objective_mode: raw
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.5
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. Each input set returns a single validation accuracy score between
+      0 and 1, the goal is to maximise this score. Return only a JSON array of numbers
+      to 6 decimals, e.g. [0.120645, 0.4578095, 0.765645, 0.347838, 0.897654, 0.382762,
+      0.987365, 0.796543].
+
+      '
+plot:
+  scale_factor: 10.0
+  yield_scale_factor: 1.0
+  source_color: red
+  source_marker_style: x
+  figsize:
+  - 6
+  - 5

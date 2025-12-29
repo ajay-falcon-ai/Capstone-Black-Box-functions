@@ -9,6 +9,7 @@ Usage:
 import argparse
 import importlib
 import json
+from logging import log
 import os
 import sys
 from pathlib import Path
@@ -136,17 +137,30 @@ def safe_get(cfg, *keys, default=None):
         cur = cur[k]
     return cur
 
-
-def run_pipeline(cfg, dh):
-    enable_full_df_print()
+class Tee:
     """
-    Run the generic pipeline using the provided config and data handler instance.
-    Returns the results dict from BayesOptUtils.run_flow.
+    A drop-in replacement for sys.stdout that duplicates all printed output:
+    - It still prints to the notebook
+    - It also writes the same text to a log file
     """
+    def __init__(self, filename):
+        self.file = open(filename, "w")
+        self.stdout = sys.stdout  # original notebook stdout
 
+    def write(self, message):
+        self.stdout.write(message)   # print to notebook
+        self.file.write(message)     # write to file
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+
+def setup_results_logging(cfg):
     now = datetime.now()
     time_str = now.strftime("%Y-%m-%d %H-%M-%S")
     print(time_str)
+
     out_dir = Path(cfg.get("out_dir", "results")) / f"run_{time_str}"
     out_dir.mkdir(parents=True, exist_ok=True)
     print("Outputs will be written to:", out_dir)
@@ -156,6 +170,20 @@ def run_pipeline(cfg, dh):
     with open(config_copy_path, "w") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     print(f"Saved a copy of the config : {config_copy_path}")
+
+    # --- Activate tee logging (print to notebook AND to file) ---
+    log_path = out_dir / "notebook_output.txt"
+    sys.stdout = Tee(log_path)      # writes to file + notebook
+    sys.stderr = sys.stdout         # capture errors too
+
+    return out_dir
+
+def run_pipeline(cfg, dh, out_dir=None):
+    enable_full_df_print()
+    """
+    Run the generic pipeline using the provided config and data handler instance.
+    Returns the results dict from BayesOptUtils.run_flow.
+    """
 
     plotter = PlotUtils(out_dir, cfg=cfg)
     utils = BayesOptUtils()
@@ -188,7 +216,7 @@ def run_pipeline(cfg, dh):
         downsample_stride=bo_cfg.get("downsample_stride", 2),
         optimization_direction=opt_direction,
         objective_mode=objective_mode,
-        training_mode=bo_cfg.get("training_mode", "exploitation"),
+        filter_training_mode=bo_cfg.get("filter_training_mode", "exploitation"),
         filter_strategy=bo_cfg.get("filter_strategy", "good"),
         out_dir=out_dir,
         config=cfg
@@ -270,7 +298,7 @@ def run_pipeline(cfg, dh):
 
             # Save CSV
             csv_path = build_grid_filename(out_dir, cfg, grid_size=grid_size)
-            df_copy_sorted.to_csv(csv_path, index=False, float_format="%.6f")
+            df_copy_sorted.to_csv(csv_path, index=False) # store the values as they are, float_format="%.6f")
             print("Saved dataframe to:", csv_path)
 
             print("Best candidate:", best)
