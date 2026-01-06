@@ -151,3 +151,9 @@ class BaseDataHandler:
         if reset_index:
             df_sorted = df_sorted.reset_index(drop=True)
         return df_sorted
+    
+    def get_inputs(self):
+        return self.inputs
+
+    def get_outputs(self):
+        return self.outputs
