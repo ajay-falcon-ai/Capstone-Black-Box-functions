@@ -1,0 +1,67 @@
+data_module: Function3DataHandler
+data_class: Function3DataHandler
+source_label: week-x
+yield_col: trans-side-effect
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.1
+  - 0.2
+  kappa_values:
+  - 1.0
+  - 2.0
+  grid_sizes:
+  - 400
+  apply_scaling: true
+  sample_strategy: cartesian
+  filter_mode: null
+  filter_training_mode: exploration
+  filter_strategy: null
+  downsample_grid: true
+  downsample_stride: 2
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 3
+    lr: 0.001
+    epochs: 500
+    patience: 20
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.9
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. Return only a JSON array of numbers with 6 decimals, e.g. [0.120645,
+      0.4578095, 1.873483].
+
+      '
+  objective_mode: raw
+plot:
+  scale_factor: 1.0
+  yield_scale_factor: 100.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5

@@ -11,7 +11,7 @@ bayesopt:
   # Acquisition parameters
   xi_values: [0.0, 0.1]   # 0.0 = pure exploitation, >0 = more exploration
   #kappa_values: [0.5, 1.0] # lower = exploit, higher = explore
-  grid_sizes: [3000]  # number of candidate points to sample on each iteration. sample point defaults to this value is not provided.
+  grid_sizes: [100000]  # number of candidate points to sample on each iteration. sample point defaults to this value is not provided.
   apply_scaling: true
   # Filtering strategy
   filter_mode: null

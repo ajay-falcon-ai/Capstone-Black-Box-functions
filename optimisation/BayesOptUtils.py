@@ -357,78 +357,72 @@ class BayesOptUtils:
                 out_dir=None,
                 config=None):
         """
-        End-to-end pipeline for Bayesian optimisation.
+        End-to-end pipeline for Bayesian optimisation using either:
+        - A surrogate neural network (CNN/MLP/etc.)
+        - An LLM-based candidate generator
 
-        This function supports two modes depending on config["model"]["type"]:
-        - "cnn": Uses a surrogate neural network (trainer) to fit the black-box function,
-        predict outputs, and compute acquisition functions.
-        - "llm": Uses an LLM candidate generator (LLMCandidateGenerator) to propose
-        candidate points via prompt patterns defined in config.yaml.
+        This function:
+        1. Preprocesses targets (optional scaling)
+        2. Trains the surrogate model (CNN path)
+        3. Generates candidate points (grid or LLM)
+        4. Computes acquisition scores
+        5. Selects the best candidate
+        6. Compares candidates to the surrogate's best-known input point
+        (model-space comparison)
+        7. Returns all results for downstream evaluation
 
         Parameters
         ----------
         trainer : SurrogateTrainer
-            Surrogate model trainer instance (CNN, MLP, etc.). Ignored if config["model"]["type"] == "llm".
-        X : np.ndarray of shape (n_samples, n_features)
-            Input feature matrix.
-        y : np.ndarray of shape (n_samples,)
-            Output target values.
+            Surrogate model trainer instance (ignored in LLM mode).
+        X : np.ndarray
+            Input feature matrix of shape (n_samples, n_features).
+        y : np.ndarray
+            Observed outputs of shape (n_samples,).
         xi_values : list of float
-            Exploration parameters for PI/EI acquisition functions (CNN mode).
+            Exploration parameters for PI/EI.
         kappa_values : list of float
-            Exploration parameters for UCB acquisition function (CNN mode).
+            Exploration parameters for UCB.
         grid_sizes : list of int
-            Resolutions of the search grid to sweep (CNN mode).
+            Grid resolutions to sweep.
         methods : list of str
-            Acquisition methods to sweep (e.g. ['PI','EI','UCB']) (CNN mode).
+            Acquisition methods to evaluate.
         apply_scaling : bool
-            Whether to scale y before training (CNN mode).
+            Whether to scale y before training.
         filter_mode : str
-            Grid filtering strategy (e.g. 'gp', 'svm') (CNN mode).
+            Grid filtering strategy (e.g., 'gp', 'svm').
         downsample_grid : bool
-            Whether to downsample the grid along each axis (CNN mode).
+            Whether to downsample the grid.
         downsample_stride : int
-            Stride for downsampling (CNN mode).
-        sample_strategy : str, default="cartesian"
-            Candidate generation strategy: "cartesian", "lhs", or "sobol" (CNN mode).
-        optimization_direction : str, default="max"
-            Optimisation direction ("max" or "min").
-        objective_mode : str, default="raw"
-            Target preprocessing mode: "raw", "zero_target", or "negated".
-        filter_training_mode : str, default="exploitation"
-            Training mode for SVM filter strategy (CNN mode).
-        filter_strategy : str, default="good"
-            Candidate filtering strategy: "boundary" or "good" (CNN mode).
-        out_dir : str or Path, optional
-            Directory to save plots and CSV outputs (CNN mode).
-        config : dict, optional
-            Experiment configuration. If provided and config["model"]["type"] == "llm",
-            trainer is ignored and LLM candidate generation is used.
+            Stride for downsampling.
+        sample_strategy : str
+            Grid sampling strategy ("cartesian", "lhs", "sobol").
+        optimization_direction : str
+            "max" or "min".
+        objective_mode : str
+            Target preprocessing mode.
+        filter_training_mode : str
+            Training mode for SVM filter.
+        filter_strategy : str
+            Candidate filtering strategy.
+        out_dir : str or Path
+            Directory for saving plots.
+        config : dict
+            If config["model"]["type"] == "llm", the LLM path is used.
 
         Returns
         -------
         results : dict
-            Dictionary keyed by grid_size (CNN) or "llm" (LLM), with values:
+            Dictionary keyed by grid_size (CNN) or "llm" (LLM), containing:
             (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
-
-            - X_grid_filtered : np.ndarray
-                Candidate grid points after filtering (CNN) or LLM candidate(s).
-            - mean_raw : np.ndarray or None
-                Surrogate predictions in raw units (CNN) or None (LLM).
-            - bounds : list of tuple
-                Bounds for each input dimension.
-            - best : dict
-                Best candidate info (method, params, score, x, predicted_y).
-            - query_results : list of dict
-                All candidate query results with acquisition scores.
-            - acq_maps : dict
-                Acquisition maps keyed by (method, param) (CNN) or empty (LLM).
         """
 
         results = {}
         acq_maps = {}
 
-        # --- LLM Candidate Path ---
+        # ----------------------------------------------------------------------
+        # LLM CANDIDATE GENERATION PATH
+        # ----------------------------------------------------------------------
         if config and config.get("model", {}).get("type") == "llm":
             llm_cfg = config["model"]["llm"]
             llm_gen = LLMCandidateGenerator(llm_cfg)
@@ -438,10 +432,11 @@ class BayesOptUtils:
             print("Output from LLM", candidate)
 
             bounds = self.compute_bounds(X, margin=0.1)
-            X_grid_filtered = np.array([candidate])  # single candidate
+            X_grid_filtered = np.array([candidate])
             mean_raw = None
             acq_maps = {}
 
+            # Best candidate is trivially the LLM output
             best = {
                 "method": "llm",
                 "params": None,
@@ -463,13 +458,16 @@ class BayesOptUtils:
             results["llm"] = (X_grid_filtered, mean_raw, bounds, best,
                             query_results, acq_maps)
 
-        # --- CNN Surrogate Path ---
+        # ----------------------------------------------------------------------
+        # CNN SURROGATE MODEL PATH
+        # ----------------------------------------------------------------------
         else:
-            # Step 1: preprocess targets
-            y_proc, y_scaler = self.preprocess_y(y, apply_scaling=apply_scaling,
-                                                objective_mode=objective_mode)
+            # 1. Preprocess targets (scaling, negation, etc.)
+            y_proc, y_scaler = self.preprocess_y(
+                y, apply_scaling=apply_scaling, objective_mode=objective_mode
+            )
 
-            # Step 2: train surrogate
+            # 2. Train surrogate model
             history = trainer.fit(X, y_proc, log_weights=True)
             plotter = PlotUtils(out_dir)
             if out_dir is not None:
@@ -477,8 +475,10 @@ class BayesOptUtils:
                 out_dir.mkdir(parents=True, exist_ok=True)
             plotter.plot_loss_curve_and_weigth_evolution(history)
 
-            # Step 3: loop over grid sizes
+            # 3. Loop over grid sizes
             for grid_size in grid_sizes:
+
+                # Compute bounds and generate candidate grid
                 bounds = self.compute_bounds(X, margin=0.1)
                 X_grid_full = self.create_sample_points(
                     bounds=bounds,
@@ -489,55 +489,142 @@ class BayesOptUtils:
                     random_state=None,
                     sample_strategy=sample_strategy
                 )
+
+                # Optional grid filtering
                 if filter_mode is None:
                     print("⚠️ No filtering applied to candidate grid")
                     X_grid_filtered = X_grid_full
                 else:
-                    X_grid_filtered = self.filter_grid(X, y_proc, X_grid_full,
-                                                filter_mode=filter_mode, filter_training_mode=filter_training_mode, filter_strategy=filter_strategy,
-                                                plotter=plotter)
+                    X_grid_filtered = self.filter_grid(
+                        X, y_proc, X_grid_full,
+                        filter_mode=filter_mode,
+                        filter_training_mode=filter_training_mode,
+                        filter_strategy=filter_strategy,
+                        plotter=plotter
+                    )
+
                 if X_grid_filtered.shape[0] == 0:
                     print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
                     continue
 
+                # Surrogate predictions on candidate grid
                 mean_scaled = trainer.predict(X_grid_filtered)
                 mean_raw = mean_scaled
                 if y_scaler is not None:
-                    mean_raw = y_scaler.inverse_transform(mean_scaled.reshape(-1, 1)).ravel()
+                    mean_raw = y_scaler.inverse_transform(
+                        mean_scaled.reshape(-1, 1)
+                    ).ravel()
 
+                # Distance-based uncertainty proxy
                 dist = pairwise_distances(X_grid_filtered, X)
                 std = np.min(dist, axis=1)
 
+                # 4. Compute acquisition scores
                 query_results = []
                 for method in methods:
                     if method in ['PI', 'EI']:
                         for xi in xi_values:
-                            acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, xi=xi)
+                            acq_map = self.compute_acquisition(
+                                method, mean_scaled, std, y_proc, xi=xi
+                            )
                             best_index = np.argmax(acq_map)
                             next_query = X_grid_filtered[best_index]
                             score = acq_map[best_index]
                             pred_val = mean_raw[best_index]
-                            self.log_query_candidate(query_results, method, xi,
-                                                    next_query, score, pred_val)
+                            self.log_query_candidate(
+                                query_results, method, xi,
+                                next_query, score, pred_val
+                            )
                             acq_maps[(method, xi)] = acq_map
+
                     elif method == 'UCB':
                         for kappa in kappa_values:
-                            acq_map = self.compute_acquisition(method, mean_scaled, std, y_proc, kappa=kappa)
+                            acq_map = self.compute_acquisition(
+                                method, mean_scaled, std, y_proc, kappa=kappa
+                            )
                             best_index = np.argmax(acq_map)
                             next_query = X_grid_filtered[best_index]
                             score = acq_map[best_index]
                             pred_val = mean_raw[best_index]
-                            self.log_query_candidate(query_results, method, kappa,
-                                                    next_query, score, pred_val)
+                            self.log_query_candidate(
+                                query_results, method, kappa,
+                                next_query, score, pred_val
+                            )
                             acq_maps[(method, kappa)] = acq_map
 
                 if not query_results:
                     print(f"⚠️ No valid candidates found for grid_size={grid_size}")
                     continue
 
+                # ------------------------------------------------------------------
+                # >>> MODEL-SPACE COMPARISON (SURROGATE(X) vs SURROGATE(CANDIDATE))
+                # ------------------------------------------------------------------
+                # Predict surrogate outputs on the original input data X
+                pred_inputs_scaled = trainer.predict(X)
+                if y_scaler is not None:
+                    pred_inputs = y_scaler.inverse_transform(
+                        pred_inputs_scaled.reshape(-1, 1)
+                    ).ravel()
+                else:
+                    pred_inputs = pred_inputs_scaled
+
+                # Identify best input point according to surrogate
+                if optimization_direction == "max":
+                    best_input_idx = np.argmax(pred_inputs)
+                else:
+                    best_input_idx = np.argmin(pred_inputs)
+
+                best_input_x = X[best_input_idx]
+                best_input_pred = pred_inputs[best_input_idx]
+
+                # ---------------------------------------------------------
+                # Add model-space improvement AND Euclidean distance
+                # ---------------------------------------------------------
+                for qr in query_results:
+                    pred = qr["predicted_y"]
+
+                    # Model-space improvement
+                    if pred is not None:
+                        if optimization_direction == "max":
+                            qr["improvement_over_input_model"] = pred - best_input_pred
+                        else:
+                            qr["improvement_over_input_model"] = best_input_pred - pred
+                    else:
+                        qr["improvement_over_input_model"] = None
+
+                    # Euclidean distance to best input point (in input space)
+                    qr["distance_to_best_input"] = float(
+                        np.linalg.norm(qr["x"] - best_input_x)
+                    )
+                # ------------------------------------------------------------------
+                # 5. Select best candidate (based on acquisition score)
+                # ------------------------------------------------------------------
                 best = self.find_best_candidate(query_results)
-                results[grid_size] = (X_grid_filtered, mean_raw, bounds, best,
-                                    query_results, acq_maps)
+                # Add Euclidean distance for the selected best candidate
+                best["distance_to_best_input"] = float(
+                    np.linalg.norm(best["x"] - best_input_x)
+                )
+                # Add model-space comparison to best dict
+                best["best_input_x"] = best_input_x
+                best["best_input_pred"] = best_input_pred
+
+                if best["predicted_y"] is not None:
+                    if optimization_direction == "max":
+                        best["improvement_over_input_model"] = (
+                            best["predicted_y"] - best_input_pred
+                        )
+                    else:
+                        best["improvement_over_input_model"] = (
+                            best_input_pred - best["predicted_y"]
+                        )
+                else:
+                    best["improvement_over_input_model"] = None
+
+                # Store results for this grid size
+                results[grid_size] = (
+                    X_grid_filtered, mean_raw, bounds, best,
+                    query_results, acq_maps
+                )
 
         return results
 
@@ -904,28 +991,67 @@ class BayesOptUtils:
         return next_query, acquisition_map, X_grid_filtered
 
     def find_best_candidate(self, results):
+        """
+        Selects the best candidate based on acquisition score,
+        and also prints the best candidate according to model-space
+        improvement and Euclidean distance to the surrogate-best input.
+        """
+
         if not results:
             raise ValueError("No candidates to evaluate.")
+
         print("Total number of points to evaluate:", len(results))
         for item in results:
             print(item)
-        """Returns the best candidate point based on acquisition score."""
 
-        best = max(results, key=lambda r: r['score'])
+        # ---------------------------------------------------------
+        # 1. Best by acquisition score (actual selection)
+        # ---------------------------------------------------------
+        best_acq = max(results, key=lambda r: r['score'])
 
-        print("🔍 Best candidate (highest acquisition score):")
-        print(f"Method: {best['method']}")
-        if best['method'] in ['PI', 'EI']:
-            print(f"xi: {best['xi']}")
+        print("\n🔍 Best candidate (highest acquisition score):")
+        print(f"Method: {best_acq['method']}")
+        if best_acq['method'] in ['PI', 'EI']:
+            print(f"xi: {best_acq['xi']}")
         else:
-            print(f"kappa: {best['kappa']}")
-        print(f"Dimensions: {best['dim']}")
-        print(f"x: {np.array2string(best['x'], precision=6, separator=', ')}")
-        print(f"Score: {best['score']:.6f}")
+            print(f"kappa: {best_acq['kappa']}")
+        print(f"Dimensions: {best_acq['dim']}")
+        print(f"x: {np.array2string(best_acq['x'], precision=6, separator=', ')}")
+        print(f"Acquisition Score: {best_acq['score']:.6f}")
+        print(f"Predicted y: {best_acq['predicted_y']}")
+        print(f"Model-space improvement: {best_acq.get('improvement_over_input_model')}")
+        print(f"Distance to best input: {best_acq.get('distance_to_best_input')}")
 
-        return best
+        # ---------------------------------------------------------
+        # 2. Best by model-space improvement (diagnostic)
+        # ---------------------------------------------------------
+        valid_model_entries = [
+            r for r in results if r.get("improvement_over_input_model") is not None
+        ]
 
+        if valid_model_entries:
+            best_model = max(
+                valid_model_entries,
+                key=lambda r: r["improvement_over_input_model"]
+            )
+
+            print("\n🔍 Best candidate (model-space improvement):")
+            print(f"Method: {best_model['method']}")
+            if best_model['method'] in ['PI', 'EI']:
+                print(f"xi: {best_model['xi']}")
+            else:
+                print(f"kappa: {best_model['kappa']}")
+            print(f"Dimensions: {best_model['dim']}")
+            print(f"x: {np.array2string(best_model['x'], precision=6, separator=', ')}")
+            print(f"Predicted y: {best_model['predicted_y']}")
+            print(f"Model-space improvement: {best_model['improvement_over_input_model']}")
+            print(f"Distance to best input: {best_model['distance_to_best_input']}")
+        else:
+            print("\n⚠️ No valid model-space comparison values available.")
+
+        return best_acq
     # Example DataFrame
+    
     def add_points_to_df(df, results):
         """
         Appends rows to df using:

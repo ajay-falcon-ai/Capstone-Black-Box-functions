@@ -1,0 +1,68 @@
+data_module: Function4DataHandler
+data_class: Function4DataHandler
+source_label: week-x
+yield_col: opt-place-score
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.01
+  - 0.01
+  - 0.3
+  kappa_values:
+  - 1.0
+  - 2.0
+  - 3.0
+  grid_sizes:
+  - 100000
+  apply_scaling: true
+  filter_mode: null
+  filter_training_mode: exploration
+  filter_strategy: null
+  sample_strategy: sobol
+  downsample_grid: false
+  downsample_stride: 8
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 4
+    lr: 0.001
+    epochs: 600
+    patience: 20
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.9
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. Note that there function is full of local optima. Return only a
+      JSON array of numbers to 6 decimals, e.g. [0.120645, 0.4578095, 0.765645, 0.347838].
+
+      '
+plot:
+  scale_factor: 2000.0
+  yield_scale_factor: 200.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5

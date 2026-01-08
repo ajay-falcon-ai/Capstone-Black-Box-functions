@@ -1,0 +1,98 @@
+Inputs shape: (30, 4)
+Outputs shape: (30,)
+First 20 rows of raw data:
+       var-1     var-2     var-3     var-4        yield   source
+28  0.803000  0.790000  1.070000  1.140000  7705.825094   week-9
+26  0.353188  0.520322  1.112618  1.186113  6717.039991   week-7
+25  0.797599  0.775484  1.047075  1.122867  6619.923796   week-6
+24  0.263058  0.962540  0.979484  1.057644  4564.328857   week-5
+27  0.287950  0.950000  0.950000  1.050000  3942.207447   week-8
+29  0.112614  0.025111  0.567469  1.144827  1246.512323  week-10
+22  0.272727  0.848484  0.848485  0.818182  1118.872547   week-3
+15  0.224189  0.846480  0.879484  0.878516  1088.859618     file
+20  0.183674  0.857143  0.816327  0.877551   872.307487   week-1
+21  0.272727  0.848484  0.848485  0.818182   743.118248   week-2
+18  0.119879  0.862540  0.643331  0.849804   431.612757     file
+23  0.242085  0.848724  0.469207  0.893286   386.681874   week-4
+14  0.438933  0.774092  0.378167  0.933696   355.806818     file
+4   0.836478  0.193610  0.663893  0.785649   258.370525     file
+9   0.463442  0.630025  0.107906  0.957644   233.223610     file
+7   0.352356  0.322242  0.116979  0.473113   109.571876     file
+13  0.511142  0.817957  0.728710  0.112354    79.729130     file
+5   0.683432  0.118663  0.829046  0.567577    78.434389     file
+0   0.191447  0.038193  0.607418  0.414584    64.443440     file
+11  0.583973  0.147243  0.348097  0.428615    64.420147     file
+Creating utilities and trainer...
+Optimization direction: max
+Objective mode: raw
+Running Bayesian optimisation flow with config: {"optimization_direction": "max", "methods": ["EI"], "xi_values": [0.0, 0.01], "grid_sizes": [100000], "apply_scaling": true, "filter_mode": null, "filter_training_mode": null, "filter_strategy": null, "sample_strategy": "random", "downsample_grid": false, "downsample_stride": 4}
+/Users/ajay.amrite/Documents/AI Course/Capstone/Black-Box functions/models/SurrogateNN.py:117: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /Users/runner/work/_temp/anaconda/conda-bld/pytorch_1711403226260/work/aten/src/ATen/native/ReduceOps.cpp:1760.)
+  "std": param.data.std().item()
+Epoch 1/500, Train Loss: 0.199255, Val Loss: 4.126724
+Epoch 50/500, Train Loss: 0.003255, Val Loss: 5.062001
+Early stopping at epoch 51, best val_loss=4.126724
+sample_strategy=random, Final sample shape: (100000, 4)
+⚠️ No filtering applied to candidate grid
+Total number of points to evaluate: 2
+{'method': 'EI', 'xi': 0.0, 'kappa': None, 'x': array([0.89067931, 1.00848555, 1.20842918, 0.45850961]), 'score': 5.287122589315278e-06, 'dim': 4, 'predicted_y': 1304.6582, 'improvement_over_input_model': 32.41394, 'distance_to_best_input': 0.7341766732848376}
+{'method': 'EI', 'xi': 0.01, 'kappa': None, 'x': array([0.89067931, 1.00848555, 1.20842918, 0.45850961]), 'score': 4.974703492642053e-06, 'dim': 4, 'predicted_y': 1304.6582, 'improvement_over_input_model': 32.41394, 'distance_to_best_input': 0.7341766732848376}
+
+🔍 Best candidate (highest acquisition score):
+Method: EI
+xi: 0.0
+Dimensions: 4
+x: [0.890679, 1.008486, 1.208429, 0.45851 ]
+Acquisition Score: 0.000005
+Predicted y: 1304.658203125
+Model-space improvement: 32.4139404296875
+Distance to best input: 0.7341766732848376
+
+🔍 Best candidate (model-space improvement):
+Method: EI
+xi: 0.0
+Dimensions: 4
+x: [0.890679, 1.008486, 1.208429, 0.45851 ]
+Predicted y: 1304.658203125
+Model-space improvement: 32.4139404296875
+Distance to best input: 0.7341766732848376
+Base dataframe built with shape: (30, 6)
+
+=== Results for grid_size=100000 ===
+Saved dataframe to: results/run_2026-01-07 17-14-50/df_grid_100000_stride4_None_max_raw_lr0.001_ep500.csv
+Best candidate: {'method': 'EI', 'xi': 0.0, 'kappa': None, 'x': array([0.89067931, 1.00848555, 1.20842918, 0.45850961]), 'score': 5.287122589315278e-06, 'dim': 4, 'predicted_y': 1304.6582, 'improvement_over_input_model': 32.41394, 'distance_to_best_input': 0.7341766732848376, 'best_input_x': array([0.803, 0.79 , 1.07 , 1.14 ]), 'best_input_pred': 1272.2443}
+       var-1     var-2     var-3     var-4        yield   source  yield-scaled
+0   0.803000  0.790000  1.070000  1.140000  7705.825094   week-9  1.000000e+01
+1   0.353188  0.520322  1.112618  1.186113  6717.039991   week-7  8.716834e+00
+2   0.797599  0.775484  1.047075  1.122867  6619.923796   week-6  8.590805e+00
+3   0.263058  0.962540  0.979484  1.057644  4564.328857   week-5  5.923219e+00
+4   0.287950  0.950000  0.950000  1.050000  3942.207447   week-8  5.115880e+00
+5   0.112614  0.025111  0.567469  1.144827  1246.512323  week-10  1.617623e+00
+6   0.272727  0.848484  0.848485  0.818182  1118.872547   week-3  1.451983e+00
+7   0.224189  0.846480  0.879484  0.878516  1088.859618     file  1.413034e+00
+8   0.183674  0.857143  0.816327  0.877551   872.307487   week-1  1.132010e+00
+9   0.272727  0.848484  0.848485  0.818182   743.118248   week-2  9.643591e-01
+10  0.119879  0.862540  0.643331  0.849804   431.612757     file  5.601123e-01
+11  0.242085  0.848724  0.469207  0.893286   386.681874   week-4  5.018046e-01
+12  0.438933  0.774092  0.378167  0.933696   355.806818     file  4.617375e-01
+13  0.836478  0.193610  0.663893  0.785649   258.370525     file  3.352925e-01
+14  0.463442  0.630025  0.107906  0.957644   233.223610     file  3.026588e-01
+15  0.352356  0.322242  0.116979  0.473113   109.571876     file  1.421936e-01
+16  0.511142  0.817957  0.728710  0.112354    79.729130     file  1.034661e-01
+17  0.683432  0.118663  0.829046  0.567577    78.434389     file  1.017858e-01
+18  0.191447  0.038193  0.607418  0.414584    64.443440     file  8.362951e-02
+19  0.583973  0.147243  0.348097  0.428615    64.420147     file  8.359928e-02
+20  0.306889  0.316878  0.622634  0.095399    63.476716     file  8.237498e-02
+21  0.553621  0.667350  0.323806  0.814870    57.571537     file  7.471171e-02
+22  0.355482  0.639619  0.417618  0.122604    45.181570     file  5.863301e-02
+23  0.725262  0.479870  0.088947  0.759760    28.866752     file  3.746095e-02
+24  0.677491  0.358510  0.479592  0.072880    24.423088     file  3.169432e-02
+25  0.758653  0.536518  0.656000  0.360342    18.301380     file  2.375006e-02
+26  0.126885  0.153430  0.770162  0.190518     9.972332     file  1.294129e-02
+27  0.153786  0.729382  0.422598  0.443074     8.847992     file  1.148221e-02
+28  0.706051  0.534192  0.264243  0.482088     4.210898     file  5.464565e-03
+29  0.438350  0.804340  0.210245  0.151295     0.112940     file  1.465642e-04
+30  0.890679  1.008486  1.208429  0.458510     0.000005   week-x  6.861202e-09
+31  0.890679  1.008486  1.208429  0.458510     0.000005   week-x  6.455770e-09
+
+Pipeline finished.
+Pipeline finished. Results keys: [100000]

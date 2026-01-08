@@ -1,0 +1,97 @@
+Inputs shape: (20, 2)
+Outputs shape: (20,)
+First 20 rows of raw data:
+    number-1  number-2  log-likelyhood-score   source
+9   0.702637  0.926564              0.611205     file
+17  0.715000  0.950000              0.597629   week-8
+13  0.691873  0.263356              0.596081   week-4
+18  0.720000  0.950000              0.565857   week-9
+0   0.665800  0.123969              0.538996     file
+12  0.722766  0.839711              0.533827   week-3
+19  0.658567  0.384858              0.490274  week-10
+1   0.877791  0.778628              0.420586     file
+3   0.845275  0.711120              0.293993     file
+6   0.438166  0.685018              0.244619     file
+4   0.454647  0.290455              0.214965     file
+11  0.616162  1.000000              0.180119   week-2
+10  0.818182  0.939394              0.051646   week-1
+16  1.077791  0.617990              0.041708   week-7
+7   0.341750  0.028698              0.038749     file
+5   0.577713  0.771973              0.023106     file
+15  0.977791  0.261960              0.021321   week-6
+14  0.790304  0.104833              0.016862   week-5
+8   0.338648  0.213867             -0.013858     file
+2   0.142699  0.349005             -0.065624     file
+Creating utilities and trainer...
+Optimization direction: max
+Objective mode: raw
+Running Bayesian optimisation flow with config: {"methods": ["PI", "EI", "UCB"], "xi_values": [0.1, 0.2, 0.5], "kappa_values": [1.0, 2.0, 3.0], "grid_sizes": [800], "apply_scaling": true, "sample_strategy": "cartesian", "filter_mode": null, "filter_training_mode": "exploration", "filter_strategy": null, "downsample_grid": false, "downsample_stride": 1, "optimization_direction": "max"}
+/Users/ajay.amrite/Documents/AI Course/Capstone/Black-Box functions/models/SurrogateNN.py:117: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /Users/runner/work/_temp/anaconda/conda-bld/pytorch_1711403226260/work/aten/src/ATen/native/ReduceOps.cpp:1760.)
+  "std": param.data.std().item()
+Epoch 1/500, Train Loss: 0.920157, Val Loss: 1.323511
+Epoch 50/500, Train Loss: 0.459843, Val Loss: 0.567929
+Epoch 100/500, Train Loss: 0.243950, Val Loss: 0.344183
+Epoch 150/500, Train Loss: 0.101879, Val Loss: 0.228451
+Epoch 200/500, Train Loss: 0.043128, Val Loss: 0.176257
+Epoch 250/500, Train Loss: 0.026634, Val Loss: 0.178272
+Early stopping at epoch 266, best val_loss=0.170952
+Using 2 dimensions, grid size per axis: 800, downsample: False, stride: 1
+Points before downsampling: 640000
+Points after downsampling: 640000
+Final grid shape: (640000, 2)
+sample_strategy=cartesian, Final sample shape: (640000, 2)
+⚠️ No filtering applied to candidate grid
+Total number of points to evaluate: 9
+{'method': 'PI', 'xi': 0.1, 'kappa': None, 'x': array([0.68198739, 0.38242804]), 'score': 0.9995760574949768, 'dim': 2, 'predicted_y': 0.6545139}
+{'method': 'PI', 'xi': 0.2, 'kappa': None, 'x': array([0.72460661, 0.56795995]), 'score': 0.6831027426685435, 'dim': 2, 'predicted_y': 0.68134576}
+{'method': 'PI', 'xi': 0.5, 'kappa': None, 'x': array([0.72460661, 0.56386733]), 'score': 0.13404234116073827, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'EI', 'xi': 0.1, 'kappa': None, 'x': array([0.72460661, 0.56386733]), 'score': 0.20521402102598968, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'EI', 'xi': 0.2, 'kappa': None, 'x': array([0.72460661, 0.56386733]), 'score': 0.12870902517523394, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'EI', 'xi': 0.5, 'kappa': None, 'x': array([0.72460661, 0.56386733]), 'score': 0.012871612897130433, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'UCB', 'xi': None, 'kappa': 1.0, 'x': array([0.72460661, 0.56386733]), 'score': 1.8859326559921221, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([0.72460661, 0.56386733]), 'score': 2.0763122476379308, 'dim': 2, 'predicted_y': 0.68133646}
+{'method': 'UCB', 'xi': None, 'kappa': 3.0, 'x': array([0.72176533, 0.56523154]), 'score': 2.267184858035005, 'dim': 2, 'predicted_y': 0.6809139}
+🔍 Best candidate (highest acquisition score):
+Method: UCB
+kappa: 3.0
+Dimensions: 2
+x: [0.721765, 0.565232]
+Score: 2.267185
+Base dataframe built with shape: (20, 4)
+
+=== Results for grid_size=800 ===
+Saved dataframe to: results/run_2026-01-07 11-00-05/df_grid_800_stride1_None_max_raw_lr0.001_ep500.csv
+Best candidate: {'method': 'UCB', 'xi': None, 'kappa': 3.0, 'x': array([0.72176533, 0.56523154]), 'score': 2.267184858035005, 'dim': 2, 'predicted_y': 0.6809139}
+    number-1  number-2  log-likelyhood-score   source  log-likelyhood-score-scaled
+0   0.721765  0.565232              2.267185   week-x                    10.000000
+1   0.724607  0.563867              2.076312   week-x                     9.158107
+2   0.724607  0.563867              1.885933   week-x                     8.318389
+3   0.681987  0.382428              0.999576   week-x                     4.408886
+4   0.724607  0.567960              0.683103   week-x                     3.013000
+5   0.702637  0.926564              0.611205     file                     2.695877
+6   0.715000  0.950000              0.597629   week-8                     2.635998
+7   0.691873  0.263356              0.596081   week-4                     2.629170
+8   0.720000  0.950000              0.565857   week-9                     2.495859
+9   0.665800  0.123969              0.538996     file                     2.377381
+10  0.722766  0.839711              0.533827   week-3                     2.354581
+11  0.658567  0.384858              0.490274  week-10                     2.162478
+12  0.877791  0.778628              0.420586     file                     1.855103
+13  0.845275  0.711120              0.293993     file                     1.296731
+14  0.438166  0.685018              0.244619     file                     1.078956
+15  0.454647  0.290455              0.214965     file                     0.948156
+16  0.724607  0.563867              0.205214   week-x                     0.905149
+17  0.616162  1.000000              0.180119   week-2                     0.794462
+18  0.724607  0.563867              0.134042   week-x                     0.591228
+19  0.724607  0.563867              0.128709   week-x                     0.567704
+20  0.818182  0.939394              0.051646   week-1                     0.227800
+21  1.077791  0.617990              0.041708   week-7                     0.183963
+22  0.341750  0.028698              0.038749     file                     0.170912
+23  0.577713  0.771973              0.023106     file                     0.101913
+24  0.977791  0.261960              0.021321   week-6                     0.094041
+25  0.790304  0.104833              0.016862   week-5                     0.074373
+26  0.724607  0.563867              0.012872   week-x                     0.056774
+27  0.338648  0.213867             -0.013858     file                    -0.061123
+28  0.142699  0.349005             -0.065624     file                    -0.289450
+
+Pipeline finished.
+Pipeline finished. Results keys: [800]
