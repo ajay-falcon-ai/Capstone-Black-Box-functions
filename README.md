@@ -87,3 +87,5 @@ Function 5: This function is a unimodal function (single peak) therefore in this
 Function 6: The function is unimodal function so for week 10 I have shifted focus to exploitation and quick convergence. Sampling on 3000 points using sobol.
 Function 7: Balanced exploration with exploitation to get the point with the best score. Sticking with sobol as the sampling strategy because of high dimensions. Sampling 4000 points.
 Function 8: Quite similar to function 6 and 4, I have balanced between exploring and exploitation (EI and UCB). Stuck to sobol with 10000 sample points.
+### Week 11:
+The queries that I submitted last week were not the best so far, especially the higher dimension functions, I attribute the reason to the drastic reduction in the number of evaluation points. This week, I have made two changes, in some cases I have used random sampling and in others sobol. In both instances I have increased, significantly, the number of evaluation point (upto hundred thousand).
