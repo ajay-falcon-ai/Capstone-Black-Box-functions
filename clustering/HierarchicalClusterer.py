@@ -6,6 +6,9 @@ import scipy.cluster.hierarchy as shc
 from sklearn.preprocessing import normalize
 from sklearn.cluster import AgglomerativeClustering
 from mpl_toolkits.mplot3d import Axes3D
+import umap
+import matplotlib.pyplot as plt
+
 
 
 class HierarchicalClusterer:
@@ -101,21 +104,26 @@ class HierarchicalClusterer:
         plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
         plt.show()
 
-    # ---------------------------------------------------------
-    # 5. Cluster visualization (2D or 3D)
-    # ---------------------------------------------------------
+        # ---------------------------------------------------------
+        # 5. Cluster visualization (2D or 3D)
+        # ---------------------------------------------------------
+
     def plot_clusters(self, df, labels):
         cols = df.columns.tolist()
+        dim = len(cols)
 
-        if len(cols) == 2:
+        # 2D case
+        if dim == 2:
             plt.figure(figsize=(8, 6))
             plt.scatter(df[cols[0]], df[cols[1]], c=labels, cmap="jet")
             plt.xlabel(cols[0])
             plt.ylabel(cols[1])
             plt.title("2D Hierarchical Clustering")
             plt.show()
+            return
 
-        elif len(cols) == 3:
+        # 3D case
+        if dim == 3:
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
             ax.scatter(df[cols[0]], df[cols[1]], df[cols[2]], c=labels, cmap="jet")
@@ -124,7 +132,24 @@ class HierarchicalClusterer:
             ax.set_zlabel(cols[2])
             plt.title("3D Hierarchical Clustering")
             plt.show()
+            return
 
-        else:
-            print(f"Data has {len(cols)} dimensions — skipping scatter plot.")
-            print("Add PCA/UMAP if you want visualisation.")
+        # High-dimensional case → UMAP fallback
+        print(f"Data has {dim} dimensions — using UMAP for visualisation.")
+
+        reducer = umap.UMAP(
+            n_components=2,
+            n_neighbors=15,
+            min_dist=0.1,
+            metric="euclidean",
+            random_state=42
+        )
+
+        reduced = reducer.fit_transform(df.values)
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(reduced[:, 0], reduced[:, 1], c=labels, cmap="jet")
+        plt.xlabel("UMAP 1")
+        plt.ylabel("UMAP 2")
+        plt.title(f"UMAP Projection of {dim}D Clusters")
+        plt.show()

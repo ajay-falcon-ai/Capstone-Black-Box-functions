@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from mpl_toolkits.mplot3d import Axes3D
+import umap  # <-- NEW
 
 
 class KMeansClusterer:
@@ -77,5 +78,25 @@ class KMeansClusterer:
             plt.show()
 
         else:
-            print(f"Data has {len(cols)} dimensions — skipping scatter plot.")
-            print("Add PCA/UMAP if you want visualisation.")
+            print(f"Data has {len(cols)} dimensions — using UMAP for visualisation.")
+            self.plot_umap(df, labels)
+
+    # ---------------------------------------------------------
+    # 5. UMAP visualisation (NEW)
+    # ---------------------------------------------------------
+    def plot_umap(self, df, labels):
+        reducer = umap.UMAP(
+            n_components=2,
+            random_state=self.random_state,
+            n_neighbors=15,
+            min_dist=0.1
+        )
+
+        embedding = reducer.fit_transform(df)
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(embedding[:, 0], embedding[:, 1], c=labels, cmap="jet", s=10)
+        plt.title("UMAP Projection of Clusters")
+        plt.xlabel("UMAP-1")
+        plt.ylabel("UMAP-2")
+        plt.show()
