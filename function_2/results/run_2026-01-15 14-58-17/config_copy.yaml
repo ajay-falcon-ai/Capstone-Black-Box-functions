@@ -1,0 +1,69 @@
+data_module: Function2DataHandler
+data_class: Function2DataHandler
+source_label: week-x
+yield_col: log-likelyhood-score
+bayesopt:
+  methods:
+  - PI
+  - EI
+  - UCB
+  xi_values:
+  - 0.1
+  - 0.2
+  - 0.5
+  kappa_values:
+  - 1.0
+  - 2.0
+  - 3.0
+  grid_sizes:
+  - 1000000
+  apply_scaling: true
+  sample_strategy: sobol
+  filter_mode: null
+  filter_training_mode: exploration
+  filter_strategy: null
+  downsample_grid: false
+  downsample_stride: 1
+  optimization_direction: max
+model:
+  type: cnn
+  params:
+    input_dim: 2
+    lr: 0.001
+    epochs: 500
+    patience: 20
+  llm:
+    enabled: true
+    provider: openai
+    model: gpt-4.1
+    temperature: 0.7
+    max_tokens: 256
+    top_p: 0.9
+    top_k: 40
+    prompt_pattern: zero-shot
+    template: 'You are helping with Bayesian optimisation.
+
+      Here are the observed input-output pairs so far:
+
+
+      Inputs: {inputs}
+
+      Outputs: {outputs}
+
+
+      Based on these, suggest the next best candidate input point
+
+      to evaluate. The the outputs are a log-likelihood score and you need to maimise
+      that score. Return only a JSON array of numbers to six decimals,, e.g. [0.120645,
+      0.4578095].
+
+      '
+plot:
+  scale_factor: 100.0
+  yield_scale_factor: 100.0
+  source_color: red
+  source_marker_style: x
+  show_candidates: true
+  figsize:
+  - 6
+  - 5

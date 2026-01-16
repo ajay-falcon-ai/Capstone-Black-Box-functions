@@ -11,14 +11,14 @@ bayesopt:
   # Acquisition parameters
   xi_values: [0.01, 0.01, 0.3]   # 0.0 = pure exploitation, >0 = more exploration
   kappa_values: [1.0, 2.0, 3.0]  # lower = exploit, higher = explore
-  grid_sizes: [100000]
+  grid_sizes: [1000000]
   apply_scaling: true
   # Filtering strategy
   filter_mode: null
   filter_training_mode: "exploration"   # exploitation/exploration/hybrid
   filter_strategy: null          # boundary (explore) or good (exploit)
   # sampling strategy
-  sample_strategy: "random"   # cartesian / latin hypercube sampling (lhs) / sobol / random
+  sample_strategy: "sobol"   # cartesian / latin hypercube sampling (lhs) / sobol / random
 
   downsample_grid: false         # to downsample or not.
   downsample_stride: 8           # higher stride means more downsampling. valid only if downsample_grid is true.

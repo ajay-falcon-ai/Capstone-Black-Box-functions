@@ -190,8 +190,7 @@ def run_pipeline(cfg, dh, out_dir=None):
 
     # Build trainer if CNN surrogate is used
     print("Creating utilities and trainer...")
-    trainer_cfg = cfg.get("trainer", {})
-    trainer = build_model(trainer_cfg, input_dim=dh.inputs.shape[1])
+    trainer = build_model(cfg, input_dim=dh.inputs.shape[1])
 
     bo_cfg = cfg.get("bayesopt", {})
     mod_cfg = cfg.get("model", {})

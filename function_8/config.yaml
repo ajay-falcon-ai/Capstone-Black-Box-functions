@@ -12,7 +12,7 @@ bayesopt:
   # Acquisition parameters
   xi_values: [0.0, 0.1, 0.2, 0.3]   # 0.0 = pure exploitation, >0 = more exploration
   kappa_values: [1.0, 2.0, 3.0] # lower = exploit, higher = explore
-  grid_sizes: [400000]
+  grid_sizes: [400]
   apply_scaling: true
   # sampling strategy
   sample_strategy: "sobol"   # cartesian / latin hypercube sampling (lhs) / sobol

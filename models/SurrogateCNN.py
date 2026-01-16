@@ -68,16 +68,27 @@ class SurrogateCNNTrainer:
         self.scaler_x = StandardScaler()
         self.scaler_y = StandardScaler()
 
-    def fit(self, X, y, val_split=0.2):
+    def fit(self, X, y, log_weights=False, val_split=0.2):
         """
-        Train the surrogate CNN with early stopping.
+        Train the surrogate CNN with early stopping and optional weight logging.
 
         Parameters
         ----------
         X : np.ndarray
         y : np.ndarray
+        log_weights : bool
+            If True, log mean/std of weights per epoch.
         val_split : float
             Fraction of data to use for validation.
+
+        Returns
+        -------
+        history : dict
+            {
+            "train_losses": [...],
+            "val_losses": [...],
+            "weights": [...]  # only if log_weights=True
+            }
         """
         # Scale data
         X_scaled = self.scaler_x.fit_transform(X)
@@ -96,25 +107,39 @@ class SurrogateCNNTrainer:
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         loss_fn = nn.MSELoss()
 
+        train_losses, val_losses, weights_log = [], [], []
         best_val_loss = np.inf
         patience_counter = 0
 
         for epoch in range(self.epochs):
-            # Training
+            # ---- Training ----
             self.model.train()
             optimizer.zero_grad()
             output = self.model(X_train_tensor)
             loss = loss_fn(output, y_train_tensor)
             loss.backward()
             optimizer.step()
+            train_losses.append(loss.item())
 
-            # Validation
+            # ---- Validation ----
             self.model.eval()
             with torch.no_grad():
                 val_output = self.model(X_val_tensor)
                 val_loss = loss_fn(val_output, y_val_tensor).item()
+            val_losses.append(val_loss)
 
-            # Early stopping
+            # ---- Log weights ----
+            if log_weights:
+                epoch_stats = {}
+                for name, param in self.model.named_parameters():
+                    if param.requires_grad:
+                        epoch_stats[name] = {
+                            "mean": param.data.mean().item(),
+                            "std": param.data.std().item()
+                        }
+                weights_log.append(epoch_stats)
+
+            # ---- Early stopping ----
             if val_loss < best_val_loss - self.min_delta:
                 best_val_loss = val_loss
                 patience_counter = 0
@@ -128,6 +153,12 @@ class SurrogateCNNTrainer:
 
             if (epoch + 1) % 50 == 0 or epoch == 0:
                 print(f"Epoch {epoch+1}/{self.epochs}, Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}")
+
+        return {
+            "train_losses": train_losses,
+            "val_losses": val_losses,
+            "weights": weights_log if log_weights else None
+        }
 
     def predict(self, X):
         """

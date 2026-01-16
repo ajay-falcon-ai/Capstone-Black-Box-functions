@@ -438,6 +438,7 @@ class PlotUtils:
     def plot_loss_curve_and_weigth_evolution(self, history, title="Training Evolution"):
         """
         Plot training & validation loss together with weight mean evolution.
+        Works for both MLP (SurrogateNN) and CNN (SurrogateCNN).
 
         Parameters
         ----------
@@ -446,23 +447,49 @@ class PlotUtils:
         title : str
             Plot title.
         """
+
+        # --- Plot losses ---
         plt.plot(history["train_losses"], label="Training loss")
-        plt.plot(history["val_losses"], label="Values loss")
+        plt.plot(history["val_losses"], label="Validation loss")
 
-        values = [epoch_stats["model.0.weight"]["mean"] for epoch_stats in history["weights"]]
-        plt.plot(values, label="Weight mean")
+        # --- Handle weight evolution ---
+        weights = history.get("weights", None)
 
+        if weights and len(weights) > 0:
+            # 1. Check if user specified a layer in config
+            layer_name = None
+            if hasattr(self, "cfg"):
+                layer_name = self.cfg.get("plot", {}).get("weight_layer", None)
+
+            # 2. Auto-detect first layer if none specified
+            if layer_name is None:
+                layer_name = list(weights[0].keys())[0]
+
+            # 3. Extract mean values for that layer
+            values = []
+            for epoch_stats in weights:
+                if layer_name in epoch_stats:
+                    values.append(epoch_stats[layer_name]["mean"])
+                else:
+                    values.append(np.nan)
+
+            plt.plot(values, label=f"{layer_name} mean")
+
+        else:
+            print("⚠ No weight statistics found in history['weights'].")
+
+        # --- Labels, title, legend ---
         plt.xlabel("Epoch")
-        plt.ylabel("Training Loss, Values Loss, Weight mean")
+        plt.ylabel("Loss / Weight mean")
         plt.title(title)
         plt.legend()
-        
-        # --- Always save and show ---
+
+        # --- Save and show ---
         fname = "plot_loss_curve_and_weigth_evolution.png"
         full_path = os.path.join(self.output_dir, fname)
         plt.savefig(full_path, dpi=300, bbox_inches="tight")
-
         plt.show()
+
         return None
 
     def plot_weight_evolution_all(self, history, layer_name="model.0.weight", stat="mean",

@@ -146,10 +146,6 @@ class BayesOptUtils:
             'predicted_y': predicted_y
         })
 
-#    def find_best_candidate(self, results):
-#
-#        return max(results, key=lambda r: r['score'])
-
     def add_points_to_df(self, df, results):
         for result in results:
             point = list(result['x'])
@@ -577,6 +573,13 @@ class BayesOptUtils:
                 best_input_x = X[best_input_idx]
                 best_input_pred = pred_inputs[best_input_idx]
 
+                if optimization_direction == "max":
+                    real_best_idx = np.argmax(y)   # y = true outputs from DataHandler
+                else:
+                    real_best_idx = np.argmin(y)
+
+                real_best_x = X[real_best_idx]
+                real_best_y = y[real_best_idx]
                 # ---------------------------------------------------------
                 # Add model-space improvement AND Euclidean distance
                 # ---------------------------------------------------------
@@ -596,6 +599,15 @@ class BayesOptUtils:
                     qr["distance_to_best_input"] = float(
                         np.linalg.norm(qr["x"] - best_input_x)
                     )
+                    qr["distance_to_real_best_input"] = float(
+                        np.linalg.norm(qr["x"] - real_best_x)
+                    )
+               # ⭐ NEW: attach surrogate-best input and real-best output to every candidate
+                for qr in query_results:
+                    qr["best_input_x"] = best_input_x
+                    qr["best_input_pred"] = best_input_pred
+                    qr["real_best_x"] = real_best_x
+                    qr["real_best_y"] = real_best_y
                 # ------------------------------------------------------------------
                 # 5. Select best candidate (based on acquisition score)
                 # ------------------------------------------------------------------
@@ -604,9 +616,14 @@ class BayesOptUtils:
                 best["distance_to_best_input"] = float(
                     np.linalg.norm(best["x"] - best_input_x)
                 )
+                best["distance_to_real_best_input"] = float(
+                    np.linalg.norm(best["x"] - real_best_x)
+                )
                 # Add model-space comparison to best dict
                 best["best_input_x"] = best_input_x
                 best["best_input_pred"] = best_input_pred
+                best["real_best_x"] = real_best_x
+                best["real_best_y"] = real_best_y
 
                 if best["predicted_y"] is not None:
                     if optimization_direction == "max":
@@ -1021,8 +1038,8 @@ class BayesOptUtils:
         print(f"Predicted y: {best_acq['predicted_y']}")
         print(f"Model-space improvement: {best_acq.get('improvement_over_input_model')}")
         print(f"Distance to best input: {best_acq.get('distance_to_best_input')}")
-
-        # ---------------------------------------------------------
+        print(f"Distance to real best input: {best_acq.get('distance_to_real_best_input')}")
+    # ---------------------------------------------------------
         # 2. Best by model-space improvement (diagnostic)
         # ---------------------------------------------------------
         valid_model_entries = [
@@ -1043,14 +1060,32 @@ class BayesOptUtils:
                 print(f"kappa: {best_model['kappa']}")
             print(f"Dimensions: {best_model['dim']}")
             print(f"x: {np.array2string(best_model['x'], precision=6, separator=', ')}")
+            print(f"Acquisition Score: {best_model['score']:.6f}")   # <-- NEW
             print(f"Predicted y: {best_model['predicted_y']}")
             print(f"Model-space improvement: {best_model['improvement_over_input_model']}")
             print(f"Distance to best input: {best_model['distance_to_best_input']}")
+            print(f"Distance to real best input: {best_model['distance_to_real_best_input']}")
         else:
             print("\n⚠️ No valid model-space comparison values available.")
 
+        # ---------------------------------------------------------
+        # 3. Print surrogate-best input (global best according to model)
+        # ---------------------------------------------------------
+        # These fields were added earlier in run_flow
+        if "best_input_x" in best_acq and "best_input_pred" in best_acq:
+            print("\n🏁 Surrogate-best input (model believes this is current optimum):")
+            print(f"x*: {np.array2string(best_acq['best_input_x'], precision=6, separator=', ')}")
+            print(f"Predicted y*: {best_acq['best_input_pred']}")
+        else:
+            print("\n⚠️ Surrogate-best input not available in candidate dictionary.")
+        if "real_best_x" in best_acq and "real_best_y" in best_acq:
+            print("\n🏁 Real-best input (actual optimum):")
+            print(f"x*: {np.array2string(best_acq['real_best_x'], precision=6, separator=', ')}")
+            print(f"Predicted y*: {best_acq['real_best_y']}")
+        else:
+            print("\n⚠️ Real-best input not available in candidate dictionary.")
+
         return best_acq
-    # Example DataFrame
     
     def add_points_to_df(df, results):
         """
