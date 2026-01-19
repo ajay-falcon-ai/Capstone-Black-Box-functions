@@ -33,4 +33,5 @@ class Function2DataHandler(BaseDataHandler):
         self.append_week_point(9, [0.720000, 0.950000], 0.565857330050682)
         self.append_week_point(10, [0.658567, 0.384858], 0.4902737196519932)
         self.append_week_point(11, [0.721765, 0.565232], 0.570095676491088)
+        self.append_week_point(12, [0.043206, 1.099323], -0.0410652057185971)
         # Add more weeks as needed
