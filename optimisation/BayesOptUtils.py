@@ -336,315 +336,6 @@ class BayesOptUtils:
         print(f"sample_strategy={sample_strategy}, Final sample shape: {samples.shape}")
         return samples
 
-    def run_flow(self, trainer, X, y,
-                xi_values,
-                kappa_values,
-                grid_sizes,
-                methods,
-                apply_scaling,
-                filter_mode,
-                downsample_grid,
-                downsample_stride,
-                sample_strategy="cartesian",
-                optimization_direction="max",
-                objective_mode="raw",
-                filter_training_mode="exploitation",
-                filter_strategy="good",
-                out_dir=None,
-                config=None):
-        """
-        End-to-end pipeline for Bayesian optimisation using either:
-        - A surrogate neural network (CNN/MLP/etc.)
-        - An LLM-based candidate generator
-
-        This function:
-        1. Preprocesses targets (optional scaling)
-        2. Trains the surrogate model (CNN path)
-        3. Generates candidate points (grid or LLM)
-        4. Computes acquisition scores
-        5. Selects the best candidate
-        6. Compares candidates to the surrogate's best-known input point
-        (model-space comparison)
-        7. Returns all results for downstream evaluation
-
-        Parameters
-        ----------
-        trainer : SurrogateTrainer
-            Surrogate model trainer instance (ignored in LLM mode).
-        X : np.ndarray
-            Input feature matrix of shape (n_samples, n_features).
-        y : np.ndarray
-            Observed outputs of shape (n_samples,).
-        xi_values : list of float
-            Exploration parameters for PI/EI.
-        kappa_values : list of float
-            Exploration parameters for UCB.
-        grid_sizes : list of int
-            Grid resolutions to sweep.
-        methods : list of str
-            Acquisition methods to evaluate.
-        apply_scaling : bool
-            Whether to scale y before training.
-        filter_mode : str
-            Grid filtering strategy (e.g., 'gp', 'svm').
-        downsample_grid : bool
-            Whether to downsample the grid.
-        downsample_stride : int
-            Stride for downsampling.
-        sample_strategy : str
-            Grid sampling strategy ("cartesian", "lhs", "sobol").
-        optimization_direction : str
-            "max" or "min".
-        objective_mode : str
-            Target preprocessing mode.
-        filter_training_mode : str
-            Training mode for SVM filter.
-        filter_strategy : str
-            Candidate filtering strategy.
-        out_dir : str or Path
-            Directory for saving plots.
-        config : dict
-            If config["model"]["type"] == "llm", the LLM path is used.
-
-        Returns
-        -------
-        results : dict
-            Dictionary keyed by grid_size (CNN) or "llm" (LLM), containing:
-            (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
-        """
-
-        results = {}
-        acq_maps = {}
-
-        # ----------------------------------------------------------------------
-        # LLM CANDIDATE GENERATION PATH
-        # ----------------------------------------------------------------------
-        if config and config.get("model", {}).get("type") == "llm":
-            llm_cfg = config["model"]["llm"]
-            llm_gen = LLMCandidateGenerator(llm_cfg)
-
-            dim = X.shape[1]
-            candidate = llm_gen.generate(X, y, dim=dim)
-            print("Output from LLM", candidate)
-
-            bounds = self.compute_bounds(X, margin=0.1)
-            X_grid_filtered = np.array([candidate])
-            mean_raw = None
-            acq_maps = {}
-
-            # Best candidate is trivially the LLM output
-            best = {
-                "method": "llm",
-                "params": None,
-                "score": None,
-                "x": candidate,
-                "predicted_y": None
-            }
-
-            query_results = [{
-                "method": "llm",
-                "xi": None,
-                "kappa": None,
-                "x": candidate,
-                "score": None,
-                "dim": len(candidate),
-                "predicted_y": None
-            }]
-
-            results["llm"] = (X_grid_filtered, mean_raw, bounds, best,
-                            query_results, acq_maps)
-
-        # ----------------------------------------------------------------------
-        # CNN SURROGATE MODEL PATH
-        # ----------------------------------------------------------------------
-        else:
-            # 1. Preprocess targets (scaling, negation, etc.)
-            y_proc, y_scaler = self.preprocess_y(
-                y, apply_scaling=apply_scaling, objective_mode=objective_mode
-            )
-
-            # 2. Train surrogate model
-            history = trainer.fit(X, y_proc, log_weights=True)
-            plotter = PlotUtils(out_dir)
-            if out_dir is not None:
-                out_dir = Path(out_dir)
-                out_dir.mkdir(parents=True, exist_ok=True)
-            plotter.plot_loss_curve_and_weigth_evolution(history)
-
-            # 3. Loop over grid sizes
-            for grid_size in grid_sizes:
-
-                # Compute bounds and generate candidate grid
-                bounds = self.compute_bounds(X, margin=0.1)
-                X_grid_full = self.create_sample_points(
-                    bounds=bounds,
-                    grid_size=grid_size,
-                    downsample_grid=downsample_grid,
-                    downsample_stride=downsample_stride,
-                    n_samples=None,
-                    random_state=None,
-                    sample_strategy=sample_strategy
-                )
-
-                # Optional grid filtering
-                if filter_mode is None:
-                    print("⚠️ No filtering applied to candidate grid")
-                    X_grid_filtered = X_grid_full
-                else:
-                    X_grid_filtered = self.filter_grid(
-                        X, y_proc, X_grid_full,
-                        filter_mode=filter_mode,
-                        filter_training_mode=filter_training_mode,
-                        filter_strategy=filter_strategy,
-                        plotter=plotter
-                    )
-
-                if X_grid_filtered.shape[0] == 0:
-                    print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
-                    continue
-
-                # Surrogate predictions on candidate grid
-                mean_scaled = trainer.predict(X_grid_filtered)
-                mean_raw = mean_scaled
-                if y_scaler is not None:
-                    mean_raw = y_scaler.inverse_transform(
-                        mean_scaled.reshape(-1, 1)
-                    ).ravel()
-
-                # Distance-based uncertainty proxy
-                dist = pairwise_distances(X_grid_filtered, X)
-                std = np.min(dist, axis=1)
-
-                # 4. Compute acquisition scores
-                query_results = []
-                for method in methods:
-                    if method in ['PI', 'EI']:
-                        for xi in xi_values:
-                            acq_map = self.compute_acquisition(
-                                method, mean_scaled, std, y_proc, xi=xi
-                            )
-                            best_index = np.argmax(acq_map)
-                            next_query = X_grid_filtered[best_index]
-                            score = acq_map[best_index]
-                            pred_val = mean_raw[best_index]
-                            self.log_query_candidate(
-                                query_results, method, xi,
-                                next_query, score, pred_val
-                            )
-                            acq_maps[(method, xi)] = acq_map
-
-                    elif method == 'UCB':
-                        for kappa in kappa_values:
-                            acq_map = self.compute_acquisition(
-                                method, mean_scaled, std, y_proc, kappa=kappa
-                            )
-                            best_index = np.argmax(acq_map)
-                            next_query = X_grid_filtered[best_index]
-                            score = acq_map[best_index]
-                            pred_val = mean_raw[best_index]
-                            self.log_query_candidate(
-                                query_results, method, kappa,
-                                next_query, score, pred_val
-                            )
-                            acq_maps[(method, kappa)] = acq_map
-
-                if not query_results:
-                    print(f"⚠️ No valid candidates found for grid_size={grid_size}")
-                    continue
-
-                # ------------------------------------------------------------------
-                # >>> MODEL-SPACE COMPARISON (SURROGATE(X) vs SURROGATE(CANDIDATE))
-                # ------------------------------------------------------------------
-                # Predict surrogate outputs on the original input data X
-                pred_inputs_scaled = trainer.predict(X)
-                if y_scaler is not None:
-                    pred_inputs = y_scaler.inverse_transform(
-                        pred_inputs_scaled.reshape(-1, 1)
-                    ).ravel()
-                else:
-                    pred_inputs = pred_inputs_scaled
-
-                # Identify best input point according to surrogate
-                if optimization_direction == "max":
-                    best_input_idx = np.argmax(pred_inputs)
-                else:
-                    best_input_idx = np.argmin(pred_inputs)
-
-                best_input_x = X[best_input_idx]
-                best_input_pred = pred_inputs[best_input_idx]
-
-                if optimization_direction == "max":
-                    real_best_idx = np.argmax(y)   # y = true outputs from DataHandler
-                else:
-                    real_best_idx = np.argmin(y)
-
-                real_best_x = X[real_best_idx]
-                real_best_y = y[real_best_idx]
-                # ---------------------------------------------------------
-                # Add model-space improvement AND Euclidean distance
-                # ---------------------------------------------------------
-                for qr in query_results:
-                    pred = qr["predicted_y"]
-
-                    # Model-space improvement
-                    if pred is not None:
-                        if optimization_direction == "max":
-                            qr["improvement_over_input_model"] = pred - best_input_pred
-                        else:
-                            qr["improvement_over_input_model"] = best_input_pred - pred
-                    else:
-                        qr["improvement_over_input_model"] = None
-
-                    # Euclidean distance to best input point (in input space)
-                    qr["distance_to_best_input"] = float(
-                        np.linalg.norm(qr["x"] - best_input_x)
-                    )
-                    qr["distance_to_real_best_input"] = float(
-                        np.linalg.norm(qr["x"] - real_best_x)
-                    )
-               # ⭐ NEW: attach surrogate-best input and real-best output to every candidate
-                for qr in query_results:
-                    qr["best_input_x"] = best_input_x
-                    qr["best_input_pred"] = best_input_pred
-                    qr["real_best_x"] = real_best_x
-                    qr["real_best_y"] = real_best_y
-                # ------------------------------------------------------------------
-                # 5. Select best candidate (based on acquisition score)
-                # ------------------------------------------------------------------
-                best = self.find_best_candidate(query_results)
-                # Add Euclidean distance for the selected best candidate
-                best["distance_to_best_input"] = float(
-                    np.linalg.norm(best["x"] - best_input_x)
-                )
-                best["distance_to_real_best_input"] = float(
-                    np.linalg.norm(best["x"] - real_best_x)
-                )
-                # Add model-space comparison to best dict
-                best["best_input_x"] = best_input_x
-                best["best_input_pred"] = best_input_pred
-                best["real_best_x"] = real_best_x
-                best["real_best_y"] = real_best_y
-
-                if best["predicted_y"] is not None:
-                    if optimization_direction == "max":
-                        best["improvement_over_input_model"] = (
-                            best["predicted_y"] - best_input_pred
-                        )
-                    else:
-                        best["improvement_over_input_model"] = (
-                            best_input_pred - best["predicted_y"]
-                        )
-                else:
-                    best["improvement_over_input_model"] = None
-
-                # Store results for this grid size
-                results[grid_size] = (
-                    X_grid_filtered, mean_raw, bounds, best,
-                    query_results, acq_maps
-                )
-
-        return results
-
     def train_svm_on_gp_mean(self, X, y, X_grid, percentile=90, kernel=None):
         """
         Train an SVM using GP mean predictions on the grid to label points.
@@ -1006,6 +697,310 @@ class BayesOptUtils:
         next_query = X_grid_filtered[best_index]
 
         return next_query, acquisition_map, X_grid_filtered
+
+    def run_flow(self, trainer, X, y,
+                xi_values,
+                kappa_values,
+                grid_sizes,
+                methods,
+                apply_scaling,
+                filter_mode,
+                downsample_grid,
+                downsample_stride,
+                sample_strategy="cartesian",
+                optimization_direction="max",
+                objective_mode="raw",
+                filter_training_mode="exploitation",
+                filter_strategy="good",
+                out_dir=None,
+                config=None):
+        """
+        End-to-end pipeline for Bayesian optimisation using either:
+        - A surrogate neural network (CNN/MLP/etc.)
+        - An LLM-based candidate generator
+
+        This function:
+        1. Preprocesses targets (optional scaling)
+        2. Trains the surrogate model (CNN path)
+        3. Generates candidate points (grid or LLM)
+        4. Computes acquisition scores
+        5. Selects the best candidate
+        6. Compares candidates to the surrogate's best-known input point
+        (model-space comparison)
+        7. Returns all results for downstream evaluation
+
+        Parameters
+        ----------
+        trainer : SurrogateTrainer
+            Surrogate model trainer instance (ignored in LLM mode).
+        X : np.ndarray
+            Input feature matrix of shape (n_samples, n_features).
+        y : np.ndarray
+            Observed outputs of shape (n_samples,).
+        xi_values : list of float
+            Exploration parameters for PI/EI.
+        kappa_values : list of float
+            Exploration parameters for UCB.
+        grid_sizes : list of int
+            Grid resolutions to sweep.
+        methods : list of str
+            Acquisition methods to evaluate.
+        apply_scaling : bool
+            Whether to scale y before training.
+        filter_mode : str
+            Grid filtering strategy (e.g., 'gp', 'svm').
+        downsample_grid : bool
+            Whether to downsample the grid.
+        downsample_stride : int
+            Stride for downsampling.
+        sample_strategy : str
+            Grid sampling strategy ("cartesian", "lhs", "sobol").
+        optimization_direction : str
+            "max" or "min".
+        objective_mode : str
+            Target preprocessing mode.
+        filter_training_mode : str
+            Training mode for SVM filter.
+        filter_strategy : str
+            Candidate filtering strategy.
+        out_dir : str or Path
+            Directory for saving plots.
+        config : dict
+            If config["model"]["type"] == "llm", the LLM path is used.
+
+        Returns
+        -------
+        results : dict
+            Dictionary keyed by grid_size (CNN) or "llm" (LLM), containing:
+            (X_grid_filtered, mean_raw, bounds, best, query_results, acq_maps)
+        """
+
+        results = {}
+        acq_maps = {}
+
+        # ----------------------------------------------------------------------
+        # LLM CANDIDATE GENERATION PATH
+        # ----------------------------------------------------------------------
+        if config and config.get("model", {}).get("type") == "llm":
+            llm_cfg = config["model"]["llm"]
+            llm_gen = LLMCandidateGenerator(llm_cfg)
+
+            dim = X.shape[1]
+            candidate = llm_gen.generate(X, y, dim=dim)
+            print("Output from LLM", candidate)
+
+            bounds = self.compute_bounds(X, margin=0.1)
+            X_grid_filtered = np.array([candidate])
+            mean_raw = None
+            acq_maps = {}
+
+            # Best candidate is trivially the LLM output
+            best = {
+                "method": "llm",
+                "params": None,
+                "score": None,
+                "x": candidate,
+                "predicted_y": None
+            }
+
+            query_results = [{
+                "method": "llm",
+                "xi": None,
+                "kappa": None,
+                "x": candidate,
+                "score": None,
+                "dim": len(candidate),
+                "predicted_y": None
+            }]
+
+            results["llm"] = (X_grid_filtered, mean_raw, bounds, best,
+                            query_results, acq_maps)
+
+        # ----------------------------------------------------------------------
+        # CNN SURROGATE MODEL PATH
+        # ----------------------------------------------------------------------
+        else:
+            # 1. Preprocess targets (scaling, negation, etc.)
+            y_proc, y_scaler = self.preprocess_y(
+                y, apply_scaling=apply_scaling, objective_mode=objective_mode
+            )
+
+            # 2. Train surrogate model
+            history = trainer.fit(X, y_proc, log_weights=True)
+            plotter = PlotUtils(out_dir)
+            if out_dir is not None:
+                out_dir = Path(out_dir)
+                out_dir.mkdir(parents=True, exist_ok=True)
+            plotter.plot_loss_curve_and_weigth_evolution(history)
+
+            # 3. Loop over grid sizes
+            for grid_size in grid_sizes:
+
+                # Compute bounds and generate candidate grid
+                bounds = self.compute_bounds(X, margin=0.1)
+                X_grid_full = self.create_sample_points(
+                    bounds=bounds,
+                    grid_size=grid_size,
+                    downsample_grid=downsample_grid,
+                    downsample_stride=downsample_stride,
+                    n_samples=None,
+                    random_state=None,
+                    sample_strategy=sample_strategy
+                )
+
+                # Optional grid filtering
+                if filter_mode is None:
+                    print("⚠️ No filtering applied to candidate grid")
+                    X_grid_filtered = X_grid_full
+                else:
+                    X_grid_filtered = self.filter_grid(
+                        X, y_proc, X_grid_full,
+                        filter_mode=filter_mode,
+                        filter_training_mode=filter_training_mode,
+                        filter_strategy=filter_strategy,
+                        plotter=plotter
+                    )
+
+                if X_grid_filtered.shape[0] == 0:
+                    print(f"⚠️ Skipping grid_size={grid_size}, filter removed all points")
+                    continue
+
+                # Surrogate predictions on candidate grid
+                mean_scaled = trainer.predict(X_grid_filtered)
+                mean_raw = mean_scaled
+                if y_scaler is not None:
+                    mean_raw = y_scaler.inverse_transform(
+                        mean_scaled.reshape(-1, 1)
+                    ).ravel()
+
+                # Distance-based uncertainty proxy
+                dist = pairwise_distances(X_grid_filtered, X)
+                std = np.min(dist, axis=1)
+
+                # 4. Compute acquisition scores
+                query_results = []
+                for method in methods:
+                    if method in ['PI', 'EI']:
+                        for xi in xi_values:
+                            acq_map = self.compute_acquisition(
+                                method, mean_scaled, std, y_proc, xi=xi
+                            )
+                            best_index = np.argmax(acq_map)
+                            next_query = X_grid_filtered[best_index]
+                            score = acq_map[best_index]
+                            pred_val = mean_raw[best_index]
+                            self.log_query_candidate(
+                                query_results, method, xi,
+                                next_query, score, pred_val
+                            )
+                            acq_maps[(method, xi)] = acq_map
+
+                    elif method == 'UCB':
+                        for kappa in kappa_values:
+                            acq_map = self.compute_acquisition(
+                                method, mean_scaled, std, y_proc, kappa=kappa
+                            )
+                            best_index = np.argmax(acq_map)
+                            next_query = X_grid_filtered[best_index]
+                            score = acq_map[best_index]
+                            pred_val = mean_raw[best_index]
+                            self.log_query_candidate(
+                                query_results, method, kappa,
+                                next_query, score, pred_val
+                            )
+                            acq_maps[(method, kappa)] = acq_map
+
+                if not query_results:
+                    print(f"⚠️ No valid candidates found for grid_size={grid_size}")
+                    continue
+
+                # ------------------------------------------------------------------
+                # >>> MODEL-SPACE COMPARISON (SURROGATE(X) vs SURROGATE(CANDIDATE))
+                # ------------------------------------------------------------------
+                # Predict surrogate outputs on the original input data X
+                pred_inputs_scaled = trainer.predict(X)
+                if y_scaler is not None:
+                    pred_inputs = y_scaler.inverse_transform(
+                        pred_inputs_scaled.reshape(-1, 1)
+                    ).ravel()
+                else:
+                    pred_inputs = pred_inputs_scaled
+
+                # Identify best input point according to surrogate
+                if optimization_direction == "max":
+                    best_input_idx = np.argmax(pred_inputs)
+                    real_best_idx = np.argmax(y)   # y = true outputs from DataHandler
+                else:
+                    best_input_idx = np.argmin(pred_inputs)
+                    real_best_idx = np.argmin(y)
+
+                best_input_x = X[best_input_idx]
+                best_input_pred = pred_inputs[best_input_idx]
+                real_best_x = X[real_best_idx]
+                real_best_y = y[real_best_idx]
+                
+                # ---------------------------------------------------------
+                # Add model-space improvement AND Euclidean distance
+                # ---------------------------------------------------------
+                for qr in query_results:
+                    pred = qr["predicted_y"]
+                    # Model-space improvement
+                    if pred is not None:
+                        if optimization_direction == "max":
+                            qr["improvement_over_input_model"] = pred - best_input_pred
+                        else:
+                            qr["improvement_over_input_model"] = best_input_pred - pred
+                    else:
+                        qr["improvement_over_input_model"] = None
+
+                    # Euclidean distance to best input point (in input space)
+                    qr["distance_to_best_input"] = float(
+                        np.linalg.norm(qr["x"] - best_input_x)
+                    )
+                    qr["distance_to_real_best_input"] = float(
+                        np.linalg.norm(qr["x"] - real_best_x)
+                    )
+                    # ⭐ NEW: attach surrogate-best input and real-best output to every candidate
+                    qr["best_input_x"] = best_input_x
+                    qr["best_input_pred"] = best_input_pred
+                    qr["real_best_x"] = real_best_x
+                    qr["real_best_y"] = real_best_y
+                # ------------------------------------------------------------------
+                # 5. Select best candidate (based on acquisition score)
+                # ------------------------------------------------------------------
+                best = self.find_best_candidate(query_results)
+                # Add Euclidean distance for the selected best candidate
+                best["distance_to_best_input"] = float(
+                    np.linalg.norm(best["x"] - best_input_x)
+                )
+                best["distance_to_real_best_input"] = float(
+                    np.linalg.norm(best["x"] - real_best_x)
+                )
+                # Add model-space comparison to best dict
+                best["best_input_x"] = best_input_x
+                best["best_input_pred"] = best_input_pred
+                best["real_best_x"] = real_best_x
+                best["real_best_y"] = real_best_y
+
+                if best["predicted_y"] is not None:
+                    if optimization_direction == "max":
+                        best["improvement_over_input_model"] = (
+                            best["predicted_y"] - best_input_pred
+                        )
+                    else:
+                        best["improvement_over_input_model"] = (
+                            best_input_pred - best["predicted_y"]
+                        )
+                else:
+                    best["improvement_over_input_model"] = None
+
+                # Store results for this grid size
+                results[grid_size] = (
+                    X_grid_filtered, mean_raw, bounds, best,
+                    query_results, acq_maps
+                )
+
+        return results
 
     def find_best_candidate(self, results):
         """

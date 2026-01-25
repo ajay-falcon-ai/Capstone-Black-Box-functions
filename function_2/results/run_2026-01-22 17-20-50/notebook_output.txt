@@ -1,0 +1,114 @@
+Inputs shape: (22, 2)
+Outputs shape: (22,)
+First 20 rows of raw data:
+    number-1  number-2  log-likelyhood-score   source
+9   0.702637  0.926564              0.611205     file
+17  0.715000  0.950000              0.597629   week-8
+13  0.691873  0.263356              0.596081   week-4
+20  0.721765  0.565232              0.570096  week-11
+18  0.720000  0.950000              0.565857   week-9
+0   0.665800  0.123969              0.538996     file
+12  0.722766  0.839711              0.533827   week-3
+19  0.658567  0.384858              0.490274  week-10
+1   0.877791  0.778628              0.420586     file
+3   0.845275  0.711120              0.293993     file
+6   0.438166  0.685018              0.244619     file
+4   0.454647  0.290455              0.214965     file
+11  0.616162  1.000000              0.180119   week-2
+10  0.818182  0.939394              0.051646   week-1
+16  1.077791  0.617990              0.041708   week-7
+7   0.341750  0.028698              0.038749     file
+5   0.577713  0.771973              0.023106     file
+15  0.977791  0.261960              0.021321   week-6
+14  0.790304  0.104833              0.016862   week-5
+8   0.338648  0.213867             -0.013858     file
+Creating utilities and trainer...
+Optimization direction: max
+Objective mode: raw
+Running Bayesian optimisation flow with config: {"methods": ["PI", "EI", "UCB"], "xi_values": [0.0, 0.1, 0.5], "kappa_values": [1.0, 2.0, 3.0], "grid_sizes": [1048576], "apply_scaling": true, "sample_strategy": "sobol", "filter_mode": null, "filter_training_mode": "exploration", "filter_strategy": null, "downsample_grid": false, "downsample_stride": 1, "optimization_direction": "max"}
+/Users/ajay.amrite/Documents/AI Course/Capstone/Black-Box functions/models/SurrogateCNN.py:138: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /Users/runner/work/_temp/anaconda/conda-bld/pytorch_1711403226260/work/aten/src/ATen/native/ReduceOps.cpp:1760.)
+  "std": param.data.std().item()
+Epoch 1/500, Train Loss: 0.955479, Val Loss: 1.288532
+Early stopping at epoch 21, best val_loss=1.288532
+sample_strategy=sobol, Final sample shape: (1048576, 2)
+⚠️ No filtering applied to candidate grid
+Total number of points to evaluate: 9
+{'method': 'PI', 'xi': 0.0, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 0.0013771325748479077, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'PI', 'xi': 0.1, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 0.0006420317754836322, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'PI', 'xi': 0.5, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 1.8784249606651315e-05, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'EI', 'xi': 0.0, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 0.00017306941770412008, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'EI', 'xi': 0.1, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 7.636289848552227e-05, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'EI', 'xi': 0.5, 'kappa': None, 'x': array([1.17750142, 1.19892969]), 'score': 1.832118867976699e-06, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'UCB', 'xi': None, 'kappa': 1.0, 'x': array([0.01027995, 0.71378136]), 'score': 0.4901656549411154, 'dim': 2, 'predicted_y': 0.2952902, 'improvement_over_input_model': 0.0017788112, 'distance_to_best_input': 0.38694505803159257, 'distance_to_real_best_input': 0.7243163751068855, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([1.17750142, 1.19892969]), 'score': 0.9317449778876497, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+{'method': 'UCB', 'xi': None, 'kappa': 3.0, 'x': array([1.17750142, 1.19892969]), 'score': 1.37499346219924, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+
+🔍 Best candidate (highest acquisition score):
+Method: UCB
+kappa: 3.0
+Dimensions: 2
+x: [1.177501, 1.19893 ]
+Acquisition Score: 1.374993
+Predicted y: 0.2808588743209839
+Model-space improvement: -0.01265251636505127
+Distance to best input: 1.138660436044991
+Distance to real best input: 0.5474299938240325
+
+🔍 Best candidate (model-space improvement):
+Method: UCB
+kappa: 1.0
+Dimensions: 2
+x: [0.01028 , 0.713781]
+Acquisition Score: 0.490166
+Predicted y: 0.2952902019023895
+Model-space improvement: 0.0017788112163543701
+Distance to best input: 0.38694505803159257
+Distance to real best input: 0.7243163751068855
+
+🏁 Surrogate-best input (model believes this is current optimum):
+x*: [0.043206, 1.099323]
+Predicted y*: 0.29351139068603516
+
+🏁 Real-best input (actual optimum):
+x*: [0.702637, 0.926564]
+Predicted y*: 0.6112052157614438
+Base dataframe built with shape: (22, 4)
+
+=== Results for grid_size=1048576 ===
+Saved dataframe to: results/run_2026-01-22 17-20-50/df_grid_1048576_stride1_None_max_raw_lr0.001_ep500.csv
+Best candidate: {'method': 'UCB', 'xi': None, 'kappa': 3.0, 'x': array([1.17750142, 1.19892969]), 'score': 1.37499346219924, 'dim': 2, 'predicted_y': 0.28085887, 'improvement_over_input_model': -0.012652516, 'distance_to_best_input': 1.138660436044991, 'distance_to_real_best_input': 0.5474299938240325, 'best_input_x': array([0.043206, 1.099323]), 'best_input_pred': 0.2935114, 'real_best_x': array([0.70263656, 0.9265642 ]), 'real_best_y': 0.6112052157614438}
+    number-1  number-2  log-likelyhood-score   source  log-likelyhood-score-scaled
+0   1.177501  1.198930              1.374993   week-x                    10.000000
+1   1.177501  1.198930              0.931745   week-x                     6.776359
+2   0.702637  0.926564              0.611205     file                     4.445150
+3   0.715000  0.950000              0.597629   week-8                     4.346416
+4   0.691873  0.263356              0.596081   week-4                     4.335158
+5   0.721765  0.565232              0.570096  week-11                     4.146170
+6   0.720000  0.950000              0.565857   week-9                     4.115346
+7   0.665800  0.123969              0.538996     file                     3.919990
+8   0.722766  0.839711              0.533827   week-3                     3.882397
+9   0.658567  0.384858              0.490274  week-10                     3.565644
+10  0.010280  0.713781              0.490166   week-x                     3.564858
+11  0.877791  0.778628              0.420586     file                     3.058824
+12  0.845275  0.711120              0.293993     file                     2.138140
+13  0.438166  0.685018              0.244619     file                     1.779058
+14  0.454647  0.290455              0.214965     file                     1.563386
+15  0.616162  1.000000              0.180119   week-2                     1.309964
+16  0.818182  0.939394              0.051646   week-1                     0.375612
+17  1.077791  0.617990              0.041708   week-7                     0.303331
+18  0.341750  0.028698              0.038749     file                     0.281812
+19  0.577713  0.771973              0.023106     file                     0.168041
+20  0.977791  0.261960              0.021321   week-6                     0.155061
+21  0.790304  0.104833              0.016862   week-5                     0.122631
+22  1.177501  1.198930              0.001377   week-x                     0.010016
+23  1.177501  1.198930              0.000642   week-x                     0.004669
+24  1.177501  1.198930              0.000173   week-x                     0.001259
+25  1.177501  1.198930              0.000076   week-x                     0.000555
+26  1.177501  1.198930              0.000019   week-x                     0.000137
+27  1.177501  1.198930              0.000002   week-x                     0.000013
+28  0.338648  0.213867             -0.013858     file                    -0.100783
+29  0.043206  1.099323             -0.041065  week-12                    -0.298657
+30  0.142699  0.349005             -0.065624     file                    -0.477265
+
+Pipeline finished.
+Pipeline finished. Results keys: [1048576]

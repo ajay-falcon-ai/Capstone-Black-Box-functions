@@ -9,9 +9,9 @@ yield_col: "opt-place-score"
 bayesopt:
   methods: ["PI", "EI", "UCB"]
   # Acquisition parameters
-  xi_values: [0.01, 0.01, 0.3]   # 0.0 = pure exploitation, >0 = more exploration
+  xi_values: [0.01, 0.1, 0.3]   # 0.0 = pure exploitation, >0 = more exploration
   kappa_values: [1.0, 2.0, 3.0]  # lower = exploit, higher = explore
-  grid_sizes: [1000000]
+  grid_sizes: [1048576]
   apply_scaling: true
   # Filtering strategy
   filter_mode: null

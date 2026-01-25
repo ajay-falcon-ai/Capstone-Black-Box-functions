@@ -1,0 +1,117 @@
+Inputs shape: (22, 2)
+Outputs shape: (22,)
+First 20 rows of raw data:
+    cont-src-1  cont-src-2  radiation-reading   source
+2     0.731024    0.733000       7.710875e-16     file
+7     0.683418    0.861057       2.535001e-40     file
+1     0.574329    0.879898       1.033078e-46     file
+9     0.883890    0.582254       6.229856e-48     file
+0     0.319404    0.762959       1.322677e-79     file
+8     0.082507    0.403488       3.606771e-81     file
+3     0.840353    0.264732      3.341771e-124     file
+12    0.579291    1.059596      4.507438e-133   week-3
+19    0.950054    1.057414     -5.419659e-201  week-10
+20    1.043352    0.949466     -8.986546e-192  week-11
+15    0.472352    1.055087     -1.802279e-144   week-6
+16    0.523861    1.067166     -1.315157e-142   week-7
+14    0.469395    1.050091     -6.688485e-142   week-5
+21    0.764957    1.030454     -8.402024e-126  week-12
+11    0.404040    0.959596     -9.343448e-112   week-2
+6     0.312691    0.078723      -2.089093e-91     file
+13    0.436769    0.825163      -1.519972e-55   week-4
+5     0.410437    0.147554      -2.159249e-54     file
+10    0.848485    0.777778      -1.248783e-49   week-1
+18    0.650000    0.690000      -1.151329e-03   week-9
+Creating utilities and trainer...
+Optimization direction: max
+Objective mode: raw
+Running Bayesian optimisation flow with config: {"methods": ["PI", "EI", "UCB"], "xi_values": [0.0, 0.01, 0.1], "kappa_values": [0.5, 1.0, 2.0], "grid_sizes": [524288], "apply_scaling": true, "sample_strategy": "sobol", "filter_mode": "gp", "filter_training_mode": "exploration", "filter_strategy": "boundary", "downsample_grid": false, "downsample_stride": 2, "optimization_direction": "max"}
+/Users/ajay.amrite/Documents/AI Course/Capstone/Black-Box functions/models/SurrogateCNN.py:138: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /Users/runner/work/_temp/anaconda/conda-bld/pytorch_1711403226260/work/aten/src/ATen/native/ReduceOps.cpp:1760.)
+  "std": param.data.std().item()
+Epoch 1/500, Train Loss: 1.204535, Val Loss: 0.249720
+Epoch 50/500, Train Loss: 0.949666, Val Loss: 0.116349
+Epoch 100/500, Train Loss: 0.434704, Val Loss: 0.204490
+Early stopping at epoch 106, best val_loss=0.013312
+sample_strategy=sobol, Final sample shape: (524288, 2)
+Auto‑tuned percentile: 20%, threshold: 1.5820
+Filtered 104858 candidates using filter_strategy='boundary'
+Total number of points to evaluate: 9
+{'method': 'PI', 'xi': 0.0, 'kappa': None, 'x': array([0.58505105, 1.05229766]), 'score': 1.0, 'dim': 2, 'predicted_y': 0.00013003177, 'improvement_over_input_model': -7.770216e-05, 'distance_to_best_input': 0.11273356344082516, 'distance_to_real_best_input': 0.3510827051438011, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'PI', 'xi': 0.01, 'kappa': None, 'x': array([0.58505105, 1.05229766]), 'score': 1.0, 'dim': 2, 'predicted_y': 0.00013003177, 'improvement_over_input_model': -7.770216e-05, 'distance_to_best_input': 0.11273356344082516, 'distance_to_real_best_input': 0.3510827051438011, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'PI', 'xi': 0.1, 'kappa': None, 'x': array([0.57750681, 1.05911929]), 'score': 1.0, 'dim': 2, 'predicted_y': 0.00014873232, 'improvement_over_input_model': -5.9001613e-05, 'distance_to_best_input': 0.10523208952632813, 'distance_to_real_best_input': 0.360445956016492, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'EI', 'xi': 0.0, 'kappa': None, 'x': array([0.12315159, 0.80203585]), 'score': 0.3798835461730976, 'dim': 2, 'predicted_y': 0.0004304997, 'improvement_over_input_model': 0.00022276577, 'distance_to_best_input': 0.4312491245408195, 'distance_to_real_best_input': 0.6117796811405046, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'EI', 'xi': 0.01, 'kappa': None, 'x': array([0.12315159, 0.80203585]), 'score': 0.37019670570406027, 'dim': 2, 'predicted_y': 0.0004304997, 'improvement_over_input_model': 0.00022276577, 'distance_to_best_input': 0.4312491245408195, 'distance_to_real_best_input': 0.6117796811405046, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'EI', 'xi': 0.1, 'kappa': None, 'x': array([0.12315159, 0.80203585]), 'score': 0.2851415778024151, 'dim': 2, 'predicted_y': 0.0004304997, 'improvement_over_input_model': 0.00022276577, 'distance_to_best_input': 0.4312491245408195, 'distance_to_real_best_input': 0.6117796811405046, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'UCB', 'xi': None, 'kappa': 0.5, 'x': array([0.12315159, 0.80203585]), 'score': 0.8362027280778774, 'dim': 2, 'predicted_y': 0.0004304997, 'improvement_over_input_model': 0.00022276577, 'distance_to_best_input': 0.4312491245408195, 'distance_to_real_best_input': 0.6117796811405046, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'UCB', 'xi': None, 'kappa': 1.0, 'x': array([0.12315159, 0.80203585]), 'score': 0.9362551318111197, 'dim': 2, 'predicted_y': 0.0004304997, 'improvement_over_input_model': 0.00022276577, 'distance_to_best_input': 0.4312491245408195, 'distance_to_real_best_input': 0.6117796811405046, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+{'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([0.12046857, 0.79571315]), 'score': 1.1378442658942642, 'dim': 2, 'predicted_y': 0.0004287515, 'improvement_over_input_model': 0.00022101756, 'distance_to_best_input': 0.4371461308471207, 'distance_to_real_best_input': 0.6137674106386086, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+
+🔍 Best candidate (highest acquisition score):
+Method: UCB
+kappa: 2.0
+Dimensions: 2
+x: [0.120469, 0.795713]
+Acquisition Score: 1.137844
+Predicted y: 0.00042875148938037455
+Model-space improvement: 0.00022101755894254893
+Distance to best input: 0.4371461308471207
+Distance to real best input: 0.6137674106386086
+
+🔍 Best candidate (model-space improvement):
+Method: EI
+xi: 0.0
+Dimensions: 2
+x: [0.123152, 0.802036]
+Acquisition Score: 0.379884
+Predicted y: 0.00043049969826824963
+Model-space improvement: 0.000222765767830424
+Distance to best input: 0.4312491245408195
+Distance to real best input: 0.6117796811405046
+
+🏁 Surrogate-best input (model believes this is current optimum):
+x*: [0.472352, 1.055087]
+Predicted y*: 0.00020773393043782562
+
+🏁 Real-best input (actual optimum):
+x*: [0.731024, 0.733   ]
+Predicted y*: 7.710875114502849e-16
+Base dataframe built with shape: (22, 4)
+
+=== Results for grid_size=524288 ===
+Saved dataframe to: results/run_2026-01-22 16-49-35/df_grid_524288_stride2_gp_max_raw_lr0.001_ep500.csv
+Best candidate: {'method': 'UCB', 'xi': None, 'kappa': 2.0, 'x': array([0.12046857, 0.79571315]), 'score': 1.1378442658942642, 'dim': 2, 'predicted_y': 0.0004287515, 'improvement_over_input_model': 0.00022101756, 'distance_to_best_input': 0.4371461308471207, 'distance_to_real_best_input': 0.6137674106386086, 'best_input_x': array([0.472352, 1.055087]), 'best_input_pred': 0.00020773393, 'real_best_x': array([0.73102363, 0.73299988]), 'real_best_y': 7.710875114502849e-16}
+    cont-src-1  cont-src-2  radiation-reading   source  radiation-reading-scaled
+0     0.120469    0.795713       1.137844e+00   week-x              1.000000e+01
+1     0.585051    1.052298       1.000000e+00   week-x              8.788549e+00
+2     0.577507    1.059119       1.000000e+00   week-x              8.788549e+00
+3     0.585051    1.052298       1.000000e+00   week-x              8.788549e+00
+4     0.123152    0.802036       9.362551e-01   week-x              8.228324e+00
+5     0.123152    0.802036       8.362027e-01   week-x              7.349009e+00
+6     0.123152    0.802036       3.798835e-01   week-x              3.338625e+00
+7     0.123152    0.802036       3.701967e-01   week-x              3.253492e+00
+8     0.123152    0.802036       2.851416e-01   week-x              2.505981e+00
+9     0.731024    0.733000       7.710875e-16     file              6.776740e-15
+10    0.683418    0.861057       2.535001e-40     file              2.227898e-39
+11    0.574329    0.879898       1.033078e-46     file              9.079259e-46
+12    0.883890    0.582254       6.229856e-48     file              5.475140e-47
+13    0.319404    0.762959       1.322677e-79     file              1.162441e-78
+14    0.082507    0.403488       3.606771e-81     file              3.169829e-80
+15    0.840353    0.264732      3.341771e-124     file             2.936932e-123
+16    0.579291    1.059596      4.507438e-133   week-3             3.961384e-132
+17    0.950054    1.057414     -5.419659e-201  week-10            -4.763094e-200
+18    1.043352    0.949466     -8.986546e-192  week-11            -7.897870e-191
+19    0.472352    1.055087     -1.802279e-144   week-6            -1.583942e-143
+20    0.523861    1.067166     -1.315157e-142   week-7            -1.155833e-141
+21    0.469395    1.050091     -6.688485e-142   week-5            -5.878208e-141
+22    0.764957    1.030454     -8.402024e-126  week-12            -7.384160e-125
+23    0.404040    0.959596     -9.343448e-112   week-2            -8.211535e-111
+24    0.312691    0.078723      -2.089093e-91     file             -1.836010e-90
+25    0.436769    0.825163      -1.519972e-55   week-4             -1.335835e-54
+26    0.410437    0.147554      -2.159249e-54     file             -1.897667e-53
+27    0.848485    0.777778      -1.248783e-49   week-1             -1.097499e-48
+28    0.650000    0.690000      -1.151329e-03   week-9             -1.011851e-02
+29    0.650114    0.681526      -3.606063e-03     file             -3.169206e-02
+30    0.650000    0.680000      -4.236010e-03   week-8             -3.722838e-02
+
+Pipeline finished.
+Pipeline finished. Results keys: [524288]
