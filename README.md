@@ -91,3 +91,5 @@ Function 8: Quite similar to function 6 and 4, I have balanced between exploring
 The queries that I submitted last week were not the best so far, especially the higher dimension functions, I attribute the reason to the drastic reduction in the number of evaluation points. This week, I have made two changes, in some cases I have used random sampling and in others sobol. In both instances I have increased, significantly, the number of evaluation point (upto hundred thousand).
 ### Week 12:
 This week I ran the optimisation using sobol as the sampling strategy with a very large number of points in order the speard to increase the area of the input space.
+### Week 13:
+In the final week I have focused on exploitation and my points submission for this week reflect that.
